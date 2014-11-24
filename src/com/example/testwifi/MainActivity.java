@@ -16,12 +16,11 @@ import android.net.wifi.p2p.WifiP2pManager.DnsSdServiceResponseListener;
 import android.net.wifi.p2p.WifiP2pManager.DnsSdTxtRecordListener;
 import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceInfo;
 import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceRequest;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
-import android.widget.Toast;
 
 public class MainActivity extends Activity {
 
@@ -32,6 +31,7 @@ public class MainActivity extends Activity {
 	TextView mTextView;
 	WifiP2pDnsSdServiceInfo mServiceInfo;
 	WifiP2pDnsSdServiceRequest mServiceRequest;
+	DiscoveryAsyncTask mDiscoveryTask;
 	
 	private final String LOGTAG = "WIFI_P2P_VS2";
 	private final String SERVICE_NAME = "_walkietalkie._tcp";
@@ -51,8 +51,7 @@ public class MainActivity extends Activity {
 		//  Create a string map containing information about your service.
         Map<String, String> record = new HashMap<String, String>();
         record.put("listenport", String.valueOf(SERVER_PORT));
-        record.put("mac", macAddr);
-        record.put("name", "name=" + macAddr);
+        record.put("device_name", Helpers.getDeviceName());
 
         // Service information.  Pass it an instance name, service type
         // _protocol._transportlayer , and the map containing
@@ -89,12 +88,16 @@ public class MainActivity extends Activity {
 	    
 	    mServiceRequest = WifiP2pDnsSdServiceRequest.newInstance();
         mManager.addServiceRequest(mChannel, mServiceRequest, null);
+        
+        mDiscoveryTask = new DiscoveryAsyncTask();
+	    mDiscoveryTask.execute();
 	}
 	
 	@Override
 	protected void onPause() {
 	    super.onPause();
 	    unregisterReceiver(mReceiver);
+	    mDiscoveryTask.stop();
 	    mManager.removeLocalService(mChannel, mServiceInfo, null);
 	    mManager.removeServiceRequest(mChannel, mServiceRequest, null);
 	}
@@ -123,8 +126,18 @@ public class MainActivity extends Activity {
 		String name;
 		String mac;
 		String ip;
-		int serverPort;
+		String deviceName;
+		int serverPort = -1;
 		boolean rightService = false;
+		
+		public String toString() {
+			return "{<Buddy> name="+name+
+					", mac="+mac+
+					", ip='"+ip+
+					"' ,serverPort="+serverPort+
+					", rightService="+rightService+
+					", deviceName="+deviceName+"}";
+		}
 	}
 	
 	final HashMap<String, Buddy> buddies = new HashMap<String, Buddy>();
@@ -132,18 +145,19 @@ public class MainActivity extends Activity {
 	private void setupServiceListeners() {
 	    DnsSdTxtRecordListener txtListener = new DnsSdTxtRecordListener() {
 			@Override
-			public void onDnsSdTxtRecordAvailable(String fullDomain, Map<String, String> record, WifiP2pDevice device) {
-	            Buddy b;
+			public void onDnsSdTxtRecordAvailable(String domain, Map<String, String> record, WifiP2pDevice device) {
+				Buddy b;
 				if(buddies.containsKey(device.deviceAddress)) {
 					b = buddies.get(device.deviceAddress);
 	            } else {
 	            	b = new Buddy();
 	            }
 	            
-	            b.name = record.get("name");
-	            b.mac = record.get("mac");
-	            b.serverPort = Integer.parseInt(record.get("listenport"));
-	            b.ip = device.toString();
+				b.deviceName = record.get("device_name");
+				
+				try {
+					b.serverPort = Integer.parseInt(record.get("listenport"));
+				} catch(Exception e) {}
 				
 				if(!buddies.containsKey(device.deviceAddress)) {
 					buddies.put(device.deviceAddress, b);
@@ -153,17 +167,19 @@ public class MainActivity extends Activity {
 	    
 	    DnsSdServiceResponseListener servListener = new DnsSdServiceResponseListener() {
 	        @Override
-	        public void onDnsSdServiceAvailable(String instanceName, String registrationType,
-                WifiP2pDevice device) {
-                Buddy b;
+	        public void onDnsSdServiceAvailable(String instanceName, String registrationType, WifiP2pDevice device) {
+	            Buddy b;
 				if(buddies.containsKey(device.deviceAddress)) {
 					b = buddies.get(device.deviceAddress);
 	            } else {
 	            	b = new Buddy();
 	            }
 			
+				b.mac = device.deviceAddress;
+				b.name = device.deviceName;
+				
     			if(registrationType.startsWith(SERVICE_NAME)) {
-	                Toast.makeText(MainActivity.this, "discovered "+b.mac, Toast.LENGTH_LONG).show();
+    				b.rightService = true;
     			}
     		
     			if(!buddies.containsKey(device.deviceAddress)) {
@@ -173,5 +189,36 @@ public class MainActivity extends Activity {
 	    };
 
 	    mManager.setDnsSdResponseListeners(mChannel, servListener, txtListener);
+	}
+	
+	private class DiscoveryAsyncTask extends AsyncTask<Void, Void, Void> {
+		private boolean stop = false;
+		
+		public void stop() {
+			stop = true;
+		}
+
+		@Override
+		protected Void doInBackground(Void... params) {
+			while(!stop) {
+				mManager.discoverServices(mChannel, null);
+				
+				try {
+					Thread.sleep(10 * 1000);
+				} catch (InterruptedException e) {}
+				
+				publishProgress();
+			}
+			return null;
+		}
+		
+		protected void onProgressUpdate(Void... progress) {
+			StringBuilder s = new StringBuilder();
+			for(Buddy b: buddies.values()) {
+				s.append(b.toString());
+				s.append('\n');
+			}
+			mTextView.setText(s.toString());
+	    }
 	}
 }
