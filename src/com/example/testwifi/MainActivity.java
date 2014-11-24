@@ -32,6 +32,8 @@ public class MainActivity extends Activity {
 	WifiP2pDnsSdServiceInfo mServiceInfo;
 	WifiP2pDnsSdServiceRequest mServiceRequest;
 	DiscoveryAsyncTask mDiscoveryTask;
+	boolean mWeAreGroupOwner = false;
+	boolean mConnected = false;
 	
 	private final String LOGTAG = "WIFI_P2P_VS2";
 	private final String SERVICE_NAME = "_walkietalkie._tcp";
@@ -83,6 +85,10 @@ public class MainActivity extends Activity {
 	@Override
 	protected void onResume() {
 	    super.onResume();
+	    
+	    mWeAreGroupOwner = false;
+		mConnected = false;
+	    
 	    registerReceiver(mReceiver, mIntentFilter);
 	    mManager.addLocalService(mChannel, mServiceInfo, null);
 	    
@@ -123,19 +129,37 @@ public class MainActivity extends Activity {
 	}
 	
 	public class Buddy {
-		String name;
-		String mac;
-		String ip;
+		WifiP2pDevice device;
 		String deviceName;
 		int serverPort = -1;
 		boolean rightService = false;
 		
 		public String toString() {
-			return "{<Buddy> name="+name+
-					", mac="+mac+
-					", ip='"+ip+
-					"' ,serverPort="+serverPort+
+			String statusText = "<null>";
+			switch(device.status) {
+			case WifiP2pDevice.AVAILABLE:
+				statusText = "available";
+				break;
+			case WifiP2pDevice.CONNECTED:
+				statusText = "connected";
+				break;
+			case WifiP2pDevice.FAILED:
+				statusText = "failed";
+				break;
+			case WifiP2pDevice.INVITED:
+				statusText = "invited";
+				break;
+			case WifiP2pDevice.UNAVAILABLE:
+				statusText = "unavailable";
+				break;
+			}
+			
+			return "{<Buddy> device=<<<"+device.toString()+
+					">>>, serverPort="+serverPort+
 					", rightService="+rightService+
+					", status="+statusText+"("+device.status+")"+
+					", grpOwner="+device.isGroupOwner()+
+					", groupOwner="+device.isGroupOwner()+
 					", deviceName="+deviceName+"}";
 		}
 	}
@@ -153,6 +177,7 @@ public class MainActivity extends Activity {
 	            	b = new Buddy();
 	            }
 	            
+				b.device = device;
 				b.deviceName = record.get("device_name");
 				
 				try {
@@ -175,13 +200,12 @@ public class MainActivity extends Activity {
 	            	b = new Buddy();
 	            }
 			
-				b.mac = device.deviceAddress;
-				b.name = device.deviceName;
+				b.device = device;
 				
     			if(registrationType.startsWith(SERVICE_NAME)) {
     				b.rightService = true;
     			}
-    		
+    			
     			if(!buddies.containsKey(device.deviceAddress)) {
 					buddies.put(device.deviceAddress, b);
 	            }	
