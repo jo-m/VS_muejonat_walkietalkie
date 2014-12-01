@@ -145,7 +145,7 @@ public class ConnectionState {
 			}
 			
 			return "{<Buddy> device=<<<"+device.deviceAddress+
-					">>>, serverPort="+serverPort+
+					", " + device.deviceName+ ">>>, serverPort="+serverPort+
 					", rightService="+rightService+
 					", status="+statusText+"("+device.status+")"+
 					", grpOwner="+device.isGroupOwner()+
