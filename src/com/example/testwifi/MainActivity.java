@@ -122,19 +122,15 @@ public class MainActivity extends Activity {
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
-		// Inflate the menu; this adds items to the action bar if it is present.
 		getMenuInflater().inflate(R.menu.main, menu);
 		return true;
 	}
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-		// Handle action bar item clicks here. The action bar will
-		// automatically handle clicks on the Home/Up button, so long
-		// as you specify a parent activity in AndroidManifest.xml.
 		int id = item.getItemId();
 		if (id == R.id.action_conn) {
-//			startConnecting();
+			startConnecting();
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
@@ -220,53 +216,7 @@ public class MainActivity extends Activity {
 	    }
 	}
 	
-//	public void findGroupOwner() {
-//		// try to find the group owner
-//		mGroupOwner = null;
-//		for(Buddy b: buddies.values()) {
-//			if(b.device.isGroupOwner()) {
-//				mGroupOwner = b.device;
-//				break;
-//			}
-//		}
-//		if(mGroupOwner == null) {
-//			mGroupOwnerAddress = null;
-//		}
-//	}
-//	
-//	private void startConnecting() {
-//		if(mConnected) {
-//			Log.d(LOGTAG, "we are connected, do nothing");
-//			return;
-//		}
-//		
-//		findGroupOwner();
-//		
-//		if(mGroupOwner != null) {
-//			// we have a group owner, so we have to
-//			// wait to be invited
-//			Log.d(LOGTAG, "we have a group owner, do nothing");
-//			return;
-//		}
-//		
-//		Buddy connectTo = null;
-//		for(Buddy b: buddies.values()) {
-//			if(b.device.status == WifiP2pDevice.AVAILABLE && b.rightService) {
-//				connectTo = b;
-//				Log.d(LOGTAG, "we will connect to " + b.deviceName);
-//				break;
-//			}
-//		}
-//		
-//		if(connectTo != null) {
-//			connectTo(connectTo);
-//		}
-//	}
-	
-	private void connectTo(Buddy b) {
-		WifiP2pConfig config = new WifiP2pConfig();
-		config.deviceAddress = b.device.deviceAddress;
-
-		mManager.connect(mChannel, config, null);
+	private void startConnecting() {
+		// TODO connect here
 	}
 }

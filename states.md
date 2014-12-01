@@ -9,16 +9,6 @@ Global state can be:
 * `group formed`
 * `no group formed`
 
-# State determination Algo
-How to determine the current state
-
-    Loop through all buddies
-    Look if one is group controller
-    If yes:
-    	set him as group controller
-    If Not:
-    	we are group controller? Are we even connected?
-
 # Connection Algo
 A basic routine to run when we search a new connection
 
@@ -38,9 +28,6 @@ A routine which the group controller runs periodically
 A routine which group members run periodically
 
 	same as Group Controller Algo
-
-# New connection
-Set new state
 
 # Lost a connection
 	if group controller:

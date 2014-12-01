@@ -2,6 +2,7 @@ package com.example.testwifi;
 
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 
 import android.net.NetworkInfo;
@@ -21,6 +22,7 @@ public class ConnectionState {
 	public boolean mConnected = false;
 	
 	private final HashMap<String, Buddy> buddies = new HashMap<String, Buddy>();
+	private Collection<WifiP2pDevice> mGroupClients = null;
 	
 	public ConnectionState(String ourAddress) {
 		this.ourAddress = ourAddress;
@@ -89,6 +91,7 @@ public class ConnectionState {
 			mWeAreGroupOwner = false;
 			mConnected = false;
 			mGroupOwnerAddress = null;
+			mGroupClients = null;
     	}
 	}
 	
@@ -99,6 +102,7 @@ public class ConnectionState {
 		
 		mGroupOwner = group.getOwner();
 		mWeAreGroupOwner = group.isGroupOwner();
+		mGroupClients = group.getClientList();
 	}
 	
 	public void updateStatus(WifiP2pDevice device, String deviceName) {
@@ -161,6 +165,10 @@ public class ConnectionState {
 		s.append(mGroupOwnerAddress + "\n");
 		s.append("buddies.size()=");
 		s.append(buddies.size() + "\n");
+		if(mGroupClients != null) {
+			s.append("mGroupClients.size()=");
+			s.append(mGroupClients.size() + "\n");
+		}
 		
 		return s.toString();
 	}

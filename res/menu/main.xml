@@ -2,6 +2,5 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="com.example.testwifi.MainActivity" >
     <item android:id="@+id/action_conn" android:title="Conn" android:showAsAction="always"></item>
-    <item android:id="@+id/action_stat" android:showAsAction="always" android:title="Stat"></item>
 
 </menu>
