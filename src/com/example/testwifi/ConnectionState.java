@@ -13,6 +13,7 @@ import android.util.Log;
 public class ConnectionState {
 	private final String LOGTAG = "WIFI_P2P_VS2";
 	private final String ourAddress;
+	
 	private WifiP2pDevice mGroupOwner;
 	private InetAddress mGroupOwnerAddress;
 	public boolean mWeAreGroupOwner = false;
@@ -36,6 +37,8 @@ public class ConnectionState {
 	public void updateStatus(WifiP2pDevice device) {
 		Buddy b = getBuddy(device.deviceAddress);
 		b.device = device;
+		
+		// TODO update status here
 	}
 	
 	public void updateStatus(WifiP2pDeviceList peers) {
@@ -63,6 +66,7 @@ public class ConnectionState {
 			return;
 		}
 		
+		// TODO update status here
 		mGroupOwnerAddress = info.groupOwnerAddress;
 		mWeAreGroupOwner = info.isGroupOwner;
 		mConnected = true;
@@ -73,19 +77,12 @@ public class ConnectionState {
 			return;
 		}
 		
-		if (info.isConnected()) {
-    		mConnected = true;
-    	} else {
-    		// we lost one
-    		if(mWeAreGroupOwner) {
-        		
-    		} else {
-//    			try {
-//    				mActivity.buddies.remove(mActivity.mGroupOwner.deviceAddress);
-//    			} catch(Exception e) {}
-    			mConnected = false;
-    			mGroupOwnerAddress = null;
-    		}
+		mConnected = info.isConnected();
+		// TODO update status here
+		if (!mConnected) {
+			mWeAreGroupOwner = false;
+			mConnected = false;
+			mGroupOwnerAddress = null;
     	}
 	}
 	
