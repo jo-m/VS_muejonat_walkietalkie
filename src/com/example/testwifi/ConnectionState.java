@@ -7,6 +7,7 @@ import java.util.HashMap;
 import android.net.NetworkInfo;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
+import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pInfo;
 import android.util.Log;
 
@@ -89,6 +90,15 @@ public class ConnectionState {
 			mConnected = false;
 			mGroupOwnerAddress = null;
     	}
+	}
+	
+	public void updateStatus(WifiP2pGroup group) {
+		if(group == null) {
+			return;
+		}
+		
+		mGroupOwner = group.getOwner();
+		mWeAreGroupOwner = group.isGroupOwner();
 	}
 	
 	public void updateStatus(WifiP2pDevice device, String deviceName) {
