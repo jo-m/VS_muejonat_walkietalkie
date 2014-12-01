@@ -38,7 +38,11 @@ public class ConnectionState {
 		Buddy b = getBuddy(device.deviceAddress);
 		b.device = device;
 		
-		// TODO update status here
+		// Update connection state
+		if(device.isGroupOwner()) {
+			mGroupOwner = device;
+			mWeAreGroupOwner = device.deviceAddress.equals(ourAddress);
+		}
 	}
 	
 	public void updateStatus(WifiP2pDeviceList peers) {
@@ -58,7 +62,6 @@ public class ConnectionState {
 				buddies.remove(addr);
 			}
 		}
-		Log.d(LOGTAG, "buddies len2 = " + buddies.size());
 	}
 	
 	public void updateStatus(WifiP2pInfo info) {
@@ -66,10 +69,12 @@ public class ConnectionState {
 			return;
 		}
 		
-		// TODO update status here
+		// Update connection state
 		mGroupOwnerAddress = info.groupOwnerAddress;
 		mWeAreGroupOwner = info.isGroupOwner;
-		mConnected = true;
+		if(mWeAreGroupOwner) {
+			mConnected = true;
+		}
 	}
 	
 	public void updateStatus(NetworkInfo info) {
@@ -77,8 +82,8 @@ public class ConnectionState {
 			return;
 		}
 		
+		// Update connection state
 		mConnected = info.isConnected();
-		// TODO update status here
 		if (!mConnected) {
 			mWeAreGroupOwner = false;
 			mConnected = false;
