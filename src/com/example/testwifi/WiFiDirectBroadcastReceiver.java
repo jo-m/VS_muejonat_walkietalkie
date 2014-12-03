@@ -23,7 +23,7 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver implements Co
     private WifiP2pManager mManager;
     private Channel mChannel;
     private MainActivity mActivity;
-    private final String LOGTAG = "WIFI_P2P_VS2";
+    private final String LOGTAG = "WIFI_P2P_VS";
 
     public WiFiDirectBroadcastReceiver(WifiP2pManager manager, Channel channel,
     		MainActivity activity) {

@@ -13,7 +13,7 @@ import android.net.wifi.p2p.WifiP2pInfo;
 import android.util.Log;
 
 public class ConnectionState {
-	private final String LOGTAG = "WIFI_P2P_VS2";
+	private final String LOGTAG = "WIFI_P2P_VS";
 	private final String ourAddress;
 	
 	private WifiP2pDevice mGroupOwner;
@@ -26,6 +26,14 @@ public class ConnectionState {
 	
 	public ConnectionState(String ourAddress) {
 		this.ourAddress = ourAddress;
+	}
+	
+	public boolean connected() {
+		return mConnected;
+	}
+	
+	public boolean haveGroupOwner() {
+		return mGroupOwner != null;
 	}
 	
 	public Buddy getBuddy(String deviceAddress) {
@@ -43,8 +51,11 @@ public class ConnectionState {
 		
 		// Update connection state
 		if(device.isGroupOwner()) {
-			mGroupOwner = device;
-			mWeAreGroupOwner = device.deviceAddress.equals(ourAddress);
+			// does he belong to our service scope?
+			if(buddies.get(device.deviceAddress).rightService) {
+				mGroupOwner = device;
+				mWeAreGroupOwner = device.deviceAddress.equals(ourAddress);
+			}
 		}
 	}
 	
@@ -117,6 +128,24 @@ public class ConnectionState {
 		b.serverPort = deviceServerPort;
 	}
 	
+	public Buddy findBuddyToConnect() {
+		for(Buddy b: buddies.values()) {
+			// thats ourselves...
+			if(b.device.deviceAddress.equals(ourAddress)) {
+				continue;
+			}
+			// thats not what we are interested in
+			if(!b.rightService) {
+				continue;
+			}
+			if(b.device.status != WifiP2pDevice.AVAILABLE) {
+				continue;
+			}
+			return b;
+		}
+		return null;
+	}
+	
 	public class Buddy {
 		WifiP2pDevice device;
 		String deviceName;
@@ -177,7 +206,7 @@ public class ConnectionState {
 		StringBuilder s = new StringBuilder();
 		for(Buddy b: buddies.values()) {
 			s.append(b.toString());
-			s.append('\n');
+			s.append("\n\n");
 		}
 		return s.toString();
 	}

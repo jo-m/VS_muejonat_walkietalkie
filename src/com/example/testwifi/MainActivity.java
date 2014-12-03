@@ -30,25 +30,23 @@ import android.widget.TextView;
 
 public class MainActivity extends Activity {
 
-	WifiP2pManager mManager;
-	Channel mChannel;
-	BroadcastReceiver mReceiver;
-	IntentFilter mIntentFilter;
-	TextView mTextView;
-	TextView mStatTextView;
-	WifiP2pDnsSdServiceInfo mServiceInfo;
-	WifiP2pDnsSdServiceRequest mServiceRequest;
-	DiscoveryAsyncTask mDiscoveryTask;
-	StatusDisplayAsyncTask mStatusUpdateTask;
+	private WifiP2pManager mManager;
+	private Channel mChannel;
+	private BroadcastReceiver mReceiver;
+	private IntentFilter mIntentFilter;
+	private TextView mTextView;
+	private TextView mStatTextView;
+	private WifiP2pDnsSdServiceInfo mServiceInfo;
+	private WifiP2pDnsSdServiceRequest mServiceRequest;
+	private DiscoveryAsyncTask mDiscoveryTask;
+	private StatusDisplayAsyncTask mStatusUpdateTask;
+	private ConnectionAsyncTask mConnectionTask;
 	
-	private final String LOGTAG = "WIFI_P2P_VS2";
+	private final String LOGTAG = "WIFI_P2P_VS";
 	private final String SERVICE_NAME = "_walkietalkie._tcp";
 	
 	private final int SERVER_PORT = 42634;
-	
-	public TextView getTextView() {
-		return mTextView;
-	}
+	private TextView mConnStatTextView;
 	
 	private String getMacAddress() {
 		WifiManager wifiMan = (WifiManager) this.getSystemService(
@@ -80,6 +78,7 @@ public class MainActivity extends Activity {
 	    mReceiver = new WiFiDirectBroadcastReceiver(mManager, mChannel, this);
 	    mTextView = (TextView) findViewById(R.id.textView);
 	    mStatTextView = (TextView) findViewById(R.id.statTextView);
+	    mConnStatTextView = (TextView) findViewById(R.id.connStatTextView);
 	    
 	    mIntentFilter = new IntentFilter();
 	    mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
@@ -105,9 +104,11 @@ public class MainActivity extends Activity {
         
         mDiscoveryTask = new DiscoveryAsyncTask();
         mStatusUpdateTask = new StatusDisplayAsyncTask();
+        mConnectionTask = new ConnectionAsyncTask();
         // execute tasks in parallel
 	    mDiscoveryTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 	    mStatusUpdateTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+	    mConnectionTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 	}
 	
 	@Override
@@ -116,6 +117,7 @@ public class MainActivity extends Activity {
 	    unregisterReceiver(mReceiver);
 	    mDiscoveryTask.stop();
 	    mStatusUpdateTask.stop();
+	    mConnectionTask.stop();
 	    mManager.removeLocalService(mChannel, mServiceInfo, null);
 	    mManager.removeServiceRequest(mChannel, mServiceRequest, null);
 	}
@@ -130,7 +132,6 @@ public class MainActivity extends Activity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		int id = item.getItemId();
 		if (id == R.id.action_conn) {
-			startConnecting();
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
@@ -204,7 +205,7 @@ public class MainActivity extends Activity {
 			while(!stop) {
 				publishProgress();	
 				try {
-					Thread.sleep(1000);
+					Thread.sleep(1 * 1000);
 				} catch (InterruptedException e) {}
 			}
 			return null;
@@ -216,7 +217,56 @@ public class MainActivity extends Activity {
 	    }
 	}
 	
-	private void startConnecting() {
-		// TODO connect here
+	private class ConnectionAsyncTask extends AsyncTask<Void, Void, Void> {
+		private boolean stop = false;
+		
+		public void stop() {
+			stop = true;
+		}
+
+		@Override
+		protected Void doInBackground(Void... params) {
+			while(!stop) {
+				publishProgress();	
+				try {
+					Thread.sleep(5 * 1000);
+				} catch (InterruptedException e) {}
+			}
+			return null;
+		}
+		
+		protected void onProgressUpdate(Void... progress) {
+			manageConnection();
+	    }
+	}
+	
+	private void manageConnection() {
+		StringBuilder connState = new StringBuilder();
+
+		if(state.connected()) {
+			connState.append("CONNECTED\n");
+			// search for buddies which have to be invited
+		} else {
+			connState.append("NOT CONNECTED\n");
+			if(state.haveGroupOwner()) {
+				connState.append("E GROUP OWNER, WAIT 10 sec\n");
+				try {
+					Thread.sleep(10 * 1000);
+				} catch (InterruptedException e) {}
+			} else {
+				connState.append("NO GROUP OWNER\n");
+				// try to connect to the first buddy
+				Buddy b = state.findBuddyToConnect();
+				
+				if(b != null) {
+					connState.append("CONNECT TO: " + b + "\n");
+				} else {
+					connState.append("NO BUDDY TO CONNECT TO\n");
+				}
+			}
+		}
+		
+		mConnStatTextView.setText(connState.toString());
+		
 	}
 }
