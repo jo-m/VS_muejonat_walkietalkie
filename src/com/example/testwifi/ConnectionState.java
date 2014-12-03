@@ -37,7 +37,7 @@ public class ConnectionState {
 		return b;
 	}
 	
-	public void updateStatus(WifiP2pDevice device) {
+	public synchronized void updateStatus(WifiP2pDevice device) {
 		Buddy b = getBuddy(device.deviceAddress);
 		b.device = device;
 		
@@ -48,7 +48,7 @@ public class ConnectionState {
 		}
 	}
 	
-	public void updateStatus(WifiP2pDeviceList peers) {
+	public synchronized void updateStatus(WifiP2pDeviceList peers) {
 		if(peers == null) {
 			return;
 		}
@@ -67,7 +67,7 @@ public class ConnectionState {
 		}
 	}
 	
-	public void updateStatus(WifiP2pInfo info) {
+	public synchronized void updateStatus(WifiP2pInfo info) {
 		if(info == null) {
 			return;
 		}
@@ -80,7 +80,7 @@ public class ConnectionState {
 		}
 	}
 	
-	public void updateStatus(NetworkInfo info) {
+	public synchronized void updateStatus(NetworkInfo info) {
 		if(info == null) {
 			return;
 		}
@@ -95,7 +95,7 @@ public class ConnectionState {
     	}
 	}
 	
-	public void updateStatus(WifiP2pGroup group) {
+	public synchronized void updateStatus(WifiP2pGroup group) {
 		if(group == null) {
 			return;
 		}
@@ -105,13 +105,13 @@ public class ConnectionState {
 		mGroupClients = group.getClientList();
 	}
 	
-	public void updateStatus(WifiP2pDevice device, String deviceName) {
+	public synchronized void updateStatus(WifiP2pDevice device, String deviceName) {
 		Buddy b = getBuddy(device.deviceAddress);
 		b.device = device;
 		b.deviceName = deviceName;
 	}
 	
-	public void updateStatus(WifiP2pDevice device, int deviceServerPort) {
+	public synchronized void updateStatus(WifiP2pDevice device, int deviceServerPort) {
 		Buddy b = getBuddy(device.deviceAddress);
 		b.device = device;
 		b.serverPort = deviceServerPort;
