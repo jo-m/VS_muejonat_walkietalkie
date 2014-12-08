@@ -2,14 +2,13 @@ package com.example.testwifi;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetAddress;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-
-import com.example.testwifi.ConnectionState.Buddy;
 
 import android.app.Activity;
 import android.content.BroadcastReceiver;
@@ -19,7 +18,6 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
-import android.net.wifi.p2p.WifiP2pInfo;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.net.wifi.p2p.WifiP2pManager.Channel;
 import android.net.wifi.p2p.WifiP2pManager.DnsSdServiceResponseListener;
@@ -32,6 +30,8 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
+
+import com.example.testwifi.ConnectionState.Buddy;
 
 public class MainActivity extends Activity {
 
@@ -151,29 +151,35 @@ public class MainActivity extends Activity {
 		return super.onOptionsItemSelected(item);
 	}
 	
-	public class ServerConnectionTask extends AsyncTask<Void, Void, Void> {
+	public class ServerConnectionThread extends Thread {
 
 		private final Socket client;
 		
-		public ServerConnectionTask(Socket client) {
+		public ServerConnectionThread(Socket client) {
 			this.client = client;
 		}
 		
-		@Override
-		protected Void doInBackground(Void... params) {
+		public void run() {
 			try {
-				InputStream inputstream = client.getInputStream();
+				InputStream in = client.getInputStream();
+				OutputStream out = client.getOutputStream();
 				
-				byte[] buf = new byte[1024];
-	            int len = inputstream.read(buf);
-	            
-	            inputstream.close();
+				byte[] _buf = new byte[1024 * 1024];
+				int len;
+				int offset = 0;
+				while((len = in.read(_buf, offset, _buf.length - offset)) >= 0) {
+					offset += len;
+					Log.d(LOGTAG, "read="+len);
+					out.write(("r="+len+"\n").getBytes());
+				}
+				byte[] buf = Arrays.copyOfRange(_buf, 0, offset);
+
+	            in.close();
 	            client.close();
+	            
+	            Log.d(LOGTAG, "FINISHED RECEIVING ret=" + new String(buf));
 			} catch (IOException e) {}
-            
-			return null;
 		}
-		
 	}
 	
 	public class ServerAsyncTask extends AsyncTask<Void, Void, Void> {
@@ -200,11 +206,12 @@ public class MainActivity extends Activity {
 	            try {
 	            	while(true) {
 	            		Socket client = serverSocket.accept();
-	            		ServerConnectionTask conn = MainActivity.this.new ServerConnectionTask(client);
-	            		conn.executeOnExecutor(THREAD_POOL_EXECUTOR);
+	            		ServerConnectionThread conn = MainActivity.this.new ServerConnectionThread(client);
+	            		conn.start();
 	            	}
 	            } catch (SocketException e) {
 	            	// our serverSocket got killed, exit
+	            	e.printStackTrace();
 	            }
 
 	        } catch (IOException e) {
