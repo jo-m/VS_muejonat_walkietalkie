@@ -28,14 +28,6 @@ public class ConnectionState {
 		this.ourAddress = ourAddress;
 	}
 	
-	public boolean connected() {
-		return mConnected;
-	}
-	
-	public boolean haveGroupOwner() {
-		return mGroupOwner != null;
-	}
-	
 	public Buddy getBuddy(String deviceAddress) {
 		Buddy b = buddies.get(deviceAddress);
 		if(b == null) {
@@ -46,6 +38,9 @@ public class ConnectionState {
 	}
 	
 	public synchronized void updateStatus(WifiP2pDevice device) {
+		if(device.deviceAddress.equals(ourAddress)) {
+			return;
+		}
 		Buddy b = getBuddy(device.deviceAddress);
 		b.device = device;
 		
@@ -74,6 +69,10 @@ public class ConnectionState {
 		for(String addr: buddies.keySet().toArray(new String[0])) {
 			if(!addresses.contains(addr)) {
 				buddies.remove(addr);
+				if(mGroupOwner != null && mGroupOwner.deviceAddress.equals(addr)) {
+					mGroupOwner = null;
+					mGroupOwnerAddress = null;
+				}
 			}
 		}
 	}
@@ -84,10 +83,12 @@ public class ConnectionState {
 		}
 		
 		// Update connection state
-		mGroupOwnerAddress = info.groupOwnerAddress;
-		mWeAreGroupOwner = info.isGroupOwner;
-		if(mWeAreGroupOwner) {
-			mConnected = true;
+		if(info.groupFormed) {
+			mGroupOwnerAddress = info.groupOwnerAddress;
+			mWeAreGroupOwner = info.isGroupOwner;
+			if(mWeAreGroupOwner) {
+				mConnected = true;
+			}
 		}
 	}
 	
@@ -117,18 +118,33 @@ public class ConnectionState {
 	}
 	
 	public synchronized void updateStatus(WifiP2pDevice device, String deviceName) {
+		if(device.deviceAddress.equals(ourAddress)) {
+			return;
+		}
 		Buddy b = getBuddy(device.deviceAddress);
 		b.device = device;
 		b.deviceName = deviceName;
 	}
 	
 	public synchronized void updateStatus(WifiP2pDevice device, int deviceServerPort) {
+		if(device.deviceAddress.equals(ourAddress)) {
+			return;
+		}
 		Buddy b = getBuddy(device.deviceAddress);
 		b.device = device;
 		b.serverPort = deviceServerPort;
 	}
 	
-	public Buddy findBuddyToConnect() {
+	public boolean connected() {
+		return mConnected;
+	}
+	
+	public boolean haveGroupOwner() {
+		return mGroupOwner != null;
+	}
+	
+	public ArrayList<Buddy> findSingleBuddies() {
+		ArrayList<Buddy> ret = new ArrayList<Buddy>();
 		for(Buddy b: buddies.values()) {
 			// thats ourselves...
 			if(b.device.deviceAddress.equals(ourAddress)) {
@@ -138,12 +154,21 @@ public class ConnectionState {
 			if(!b.rightService) {
 				continue;
 			}
-			if(b.device.status != WifiP2pDevice.AVAILABLE) {
+			if(b.device.status != WifiP2pDevice.AVAILABLE
+					&& b.device.status != WifiP2pDevice.INVITED) {
 				continue;
 			}
-			return b;
+			ret.add(b);
 		}
-		return null;
+		return ret;
+	}
+	
+	public Buddy findBuddyToConnect() {
+		ArrayList<Buddy> ret = findSingleBuddies();
+		if(ret.size() == 0) {
+			return null;
+		}
+		return ret.get(0);
 	}
 	
 	public class Buddy {

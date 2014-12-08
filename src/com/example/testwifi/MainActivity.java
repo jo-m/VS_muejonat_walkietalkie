@@ -120,6 +120,9 @@ public class MainActivity extends Activity {
 	    mConnectionTask.stop();
 	    mManager.removeLocalService(mChannel, mServiceInfo, null);
 	    mManager.removeServiceRequest(mChannel, mServiceRequest, null);
+	    
+	    mManager.cancelConnect(mChannel, null);
+	    mManager.removeGroup(mChannel, null);
 	}
 
 	@Override
@@ -246,6 +249,13 @@ public class MainActivity extends Activity {
 		if(state.connected()) {
 			connState.append("CONNECTED\n");
 			// search for buddies which have to be invited
+			for(Buddy b: state.findSingleBuddies()) {
+				connState.append("INVITE: " + b + "\n");
+				WifiP2pConfig config = new WifiP2pConfig();
+				config.deviceAddress = b.device.deviceAddress;
+
+				mManager.connect(mChannel, config, null);
+			}
 		} else {
 			connState.append("NOT CONNECTED\n");
 			if(state.haveGroupOwner()) {
@@ -260,6 +270,10 @@ public class MainActivity extends Activity {
 				
 				if(b != null) {
 					connState.append("CONNECT TO: " + b + "\n");
+					WifiP2pConfig config = new WifiP2pConfig();
+					config.deviceAddress = b.device.deviceAddress;
+					
+					mManager.connect(mChannel, config, null);
 				} else {
 					connState.append("NO BUDDY TO CONNECT TO\n");
 				}
