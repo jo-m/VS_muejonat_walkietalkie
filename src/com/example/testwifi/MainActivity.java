@@ -1,6 +1,11 @@
 package com.example.testwifi;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,14 +43,16 @@ public class MainActivity extends Activity {
 	private TextView mStatTextView;
 	private WifiP2pDnsSdServiceInfo mServiceInfo;
 	private WifiP2pDnsSdServiceRequest mServiceRequest;
+	
 	private DiscoveryAsyncTask mDiscoveryTask;
 	private StatusDisplayAsyncTask mStatusUpdateTask;
 	private ConnectionAsyncTask mConnectionTask;
+	private ServerAsyncTask mServerTask;
 	
-	private final String LOGTAG = "WIFI_P2P_VS";
+	private final static String LOGTAG = "WIFI_P2P_VS";
 	private final String SERVICE_NAME = "_walkietalkie._tcp";
 	
-	private final int SERVER_PORT = 42634;
+	private final static int SERVER_PORT = 42634;
 	private TextView mConnStatTextView;
 	
 	private String getMacAddress() {
@@ -105,10 +112,12 @@ public class MainActivity extends Activity {
         mDiscoveryTask = new DiscoveryAsyncTask();
         mStatusUpdateTask = new StatusDisplayAsyncTask();
         mConnectionTask = new ConnectionAsyncTask();
+        mServerTask = new ServerAsyncTask();
         // execute tasks in parallel
 	    mDiscoveryTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 	    mStatusUpdateTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 	    mConnectionTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+	    mServerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 	}
 	
 	@Override
@@ -118,6 +127,8 @@ public class MainActivity extends Activity {
 	    mDiscoveryTask.stop();
 	    mStatusUpdateTask.stop();
 	    mConnectionTask.stop();
+	    mServerTask.stop();
+	    
 	    mManager.removeLocalService(mChannel, mServiceInfo, null);
 	    mManager.removeServiceRequest(mChannel, mServiceRequest, null);
 	    
@@ -134,10 +145,73 @@ public class MainActivity extends Activity {
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		int id = item.getItemId();
-		if (id == R.id.action_conn) {
+		if (id == R.id.action_send) {
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
+	}
+	
+	public class ServerConnectionTask extends AsyncTask<Void, Void, Void> {
+
+		private final Socket client;
+		
+		public ServerConnectionTask(Socket client) {
+			this.client = client;
+		}
+		
+		@Override
+		protected Void doInBackground(Void... params) {
+			try {
+				InputStream inputstream = client.getInputStream();
+				
+				byte[] buf = new byte[1024];
+	            int len = inputstream.read(buf);
+	            
+	            inputstream.close();
+	            client.close();
+			} catch (IOException e) {}
+            
+			return null;
+		}
+		
+	}
+	
+	public class ServerAsyncTask extends AsyncTask<Void, Void, Void> {
+		private ServerSocket serverSocket;
+		
+		public void stop() {
+			try {
+				serverSocket.close();
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
+		}
+		
+	    @Override
+	    protected Void doInBackground(Void... params) {
+	        try {
+
+	            /**
+	             * Create a server socket and wait for client connections. This
+	             * call blocks until a connection is accepted from a client
+	             */
+	            serverSocket = new ServerSocket(SERVER_PORT);
+	            
+	            try {
+	            	while(true) {
+	            		Socket client = serverSocket.accept();
+	            		ServerConnectionTask conn = MainActivity.this.new ServerConnectionTask(client);
+	            		conn.executeOnExecutor(THREAD_POOL_EXECUTOR);
+	            	}
+	            } catch (SocketException e) {
+	            	// our serverSocket got killed, exit
+	            }
+
+	        } catch (IOException e) {
+	            e.printStackTrace();
+	        }
+	        return null;
+	    }
 	}
 	
 	private ConnectionState state;
@@ -222,7 +296,7 @@ public class MainActivity extends Activity {
 	
 	private class ConnectionAsyncTask extends AsyncTask<Void, Void, Void> {
 		private boolean stop = false;
-		
+
 		public void stop() {
 			stop = true;
 		}
@@ -281,6 +355,5 @@ public class MainActivity extends Activity {
 		}
 		
 		mConnStatTextView.setText(connState.toString());
-		
 	}
 }
