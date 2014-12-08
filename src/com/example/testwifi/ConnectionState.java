@@ -1,6 +1,7 @@
 package com.example.testwifi;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -10,7 +11,6 @@ import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
 import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pInfo;
-import android.util.Log;
 
 public class ConnectionState {
 	private final String LOGTAG = "WIFI_P2P_VS";
@@ -28,7 +28,18 @@ public class ConnectionState {
 		this.ourAddress = ourAddress;
 	}
 	
-	public Buddy getBuddy(String deviceAddress) {
+	public synchronized InetSocketAddress getGroupOwnerConnectionInfos() {
+		if(mGroupOwner == null) {
+			return null;
+		}
+		Buddy b = getBuddy(mGroupOwner.deviceAddress);
+		if(b.serverPort > 0) {
+			return new InetSocketAddress(mGroupOwnerAddress, b.serverPort);
+		}
+		return null;
+	}
+	
+	public synchronized Buddy getBuddy(String deviceAddress) {
 		Buddy b = buddies.get(deviceAddress);
 		if(b == null) {
         	b = new Buddy();
@@ -135,15 +146,15 @@ public class ConnectionState {
 		b.serverPort = deviceServerPort;
 	}
 	
-	public boolean connected() {
+	public synchronized boolean connected() {
 		return mConnected;
 	}
 	
-	public boolean haveGroupOwner() {
+	public synchronized boolean haveGroupOwner() {
 		return mGroupOwner != null;
 	}
 	
-	public ArrayList<Buddy> findSingleBuddies() {
+	public synchronized ArrayList<Buddy> findSingleBuddies() {
 		ArrayList<Buddy> ret = new ArrayList<Buddy>();
 		for(Buddy b: buddies.values()) {
 			// thats ourselves...
@@ -163,7 +174,7 @@ public class ConnectionState {
 		return ret;
 	}
 	
-	public Buddy findBuddyToConnect() {
+	public synchronized Buddy findBuddyToConnect() {
 		ArrayList<Buddy> ret = findSingleBuddies();
 		if(ret.size() == 0) {
 			return null;
@@ -207,7 +218,7 @@ public class ConnectionState {
 		}
 	}
 	
-	public String toString() {
+	public synchronized String toString() {
 		StringBuilder s = new StringBuilder();
 		s.append("mWeAreGroupOwner=");
 		s.append(mWeAreGroupOwner + "\n");
@@ -227,7 +238,7 @@ public class ConnectionState {
 		return s.toString();
 	}
 	
-	public String buddiesToString() {
+	public synchronized String buddiesToString() {
 		StringBuilder s = new StringBuilder();
 		for(Buddy b: buddies.values()) {
 			s.append(b.toString());

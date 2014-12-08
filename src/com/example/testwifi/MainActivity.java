@@ -2,7 +2,8 @@ package com.example.testwifi;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
@@ -30,6 +31,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.testwifi.ConnectionState.Buddy;
 
@@ -146,6 +148,7 @@ public class MainActivity extends Activity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		int id = item.getItemId();
 		if (id == R.id.action_send) {
+			sendMessage(("Hallo anderes GerŠt, hier spricht "+getMacAddress()).getBytes());
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
@@ -162,24 +165,54 @@ public class MainActivity extends Activity {
 		public void run() {
 			try {
 				InputStream in = client.getInputStream();
-				OutputStream out = client.getOutputStream();
 				
 				byte[] _buf = new byte[1024 * 1024];
 				int len;
 				int offset = 0;
 				while((len = in.read(_buf, offset, _buf.length - offset)) >= 0) {
 					offset += len;
-					Log.d(LOGTAG, "read="+len);
-					out.write(("r="+len+"\n").getBytes());
 				}
-				byte[] buf = Arrays.copyOfRange(_buf, 0, offset);
-
+				final byte[] buf = Arrays.copyOfRange(_buf, 0, offset);
+	            
+	            runOnUiThread(new Runnable() {
+					@Override
+					public void run() {
+						messageReceiced(buf);
+					}
+				});
+	            
 	            in.close();
 	            client.close();
-	            
-	            Log.d(LOGTAG, "FINISHED RECEIVING ret=" + new String(buf));
 			} catch (IOException e) {}
 		}
+	}
+	
+	private void messageReceiced(byte[] msg) {
+		Log.d(LOGTAG, "FINISHED RECEIVING ret=" + new String(msg));
+		Toast.makeText(this, new String(msg), Toast.LENGTH_SHORT).show();
+	}
+	
+	private void sendMessage(final byte[] msg) {
+		final InetSocketAddress addr = state.getGroupOwnerConnectionInfos();
+		if(addr == null) {
+			Toast.makeText(this, "not connected, sorry", Toast.LENGTH_SHORT).show();
+			return;
+		}
+		
+		new Thread() {
+			public void run() {
+				Socket socket = new Socket();
+				try {
+					socket.bind(null);
+					socket.connect(addr, 1000);
+					
+					socket.getOutputStream().write(msg);
+					socket.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}.start();
 	}
 	
 	public class ServerAsyncTask extends AsyncTask<Void, Void, Void> {
@@ -196,11 +229,6 @@ public class MainActivity extends Activity {
 	    @Override
 	    protected Void doInBackground(Void... params) {
 	        try {
-
-	            /**
-	             * Create a server socket and wait for client connections. This
-	             * call blocks until a connection is accepted from a client
-	             */
 	            serverSocket = new ServerSocket(SERVER_PORT);
 	            
 	            try {
@@ -296,7 +324,11 @@ public class MainActivity extends Activity {
 		}
 		
 		protected void onProgressUpdate(Void... progress) {
-			mTextView.setText(state.buddiesToString());
+			try {
+				mTextView.setText(state.buddiesToString());
+			} catch (NullPointerException e) {
+				mTextView.setText("<NullPointerException>");
+			}
 			mStatTextView.setText(state.toString());
 	    }
 	}
