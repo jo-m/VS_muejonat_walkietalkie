@@ -47,6 +47,7 @@ public class MainActivity extends Activity {
 	private TextView mStatTextView;
 	private WifiP2pDnsSdServiceInfo mServiceInfo;
 	private WifiP2pDnsSdServiceRequest mServiceRequest;
+	private MessageDeduplicator mDeduplicator = new MessageDeduplicator();
 	
 	private DiscoveryAsyncTask mDiscoveryTask;
 	private StatusDisplayAsyncTask mStatusUpdateTask;
@@ -155,6 +156,7 @@ public class MainActivity extends Activity {
 		int id = item.getItemId();
 		if (id == R.id.action_send) {
 			String msg = "Hallo anderes Gerät, hier spricht "+getMacAddress();
+			msg += " timestamp=" + System.currentTimeMillis();
 			
 			if(state.mWeAreGroupOwner) {
 				broadcastData(msg.getBytes());
@@ -172,7 +174,6 @@ public class MainActivity extends Activity {
 	 */
 	private void broadcastData(byte[] data) {
 		if(!state.mWeAreGroupOwner) {
-			Toast.makeText(this, "NOPE, we are not group owner", Toast.LENGTH_SHORT).show();
 			return;
 		}
 		Toast.makeText(this, "DATA BROADCAST = " + new String(data), Toast.LENGTH_SHORT).show();
@@ -187,11 +188,11 @@ public class MainActivity extends Activity {
 	 */
 	private void sendData(byte[] data) {
 		if(state.mWeAreGroupOwner) {
-			Toast.makeText(this, "NOPE, we are group owner", Toast.LENGTH_SHORT).show();
 			return;
 		}
 		Toast.makeText(this, "DATA SEND = " + new String(data), Toast.LENGTH_SHORT).show();
 		byte[] msg = NetworkProtocol.composeMessage(NetworkProtocol.CMD_SEND_DATA, data);
+		mDeduplicator.addMessage(data);
 		sendMessageToAddr(msg, state.getGroupOwnerConnectionInfos());
 	}
 	
@@ -200,7 +201,15 @@ public class MainActivity extends Activity {
 	 * @param msg
 	 */
 	private void dataReceived(byte[] data) {
+		if(!mDeduplicator.messageIsNew(data)) {
+			return;
+		}
 		Toast.makeText(this, "DATA RECEIVED = " + new String(data), Toast.LENGTH_SHORT).show();
+		
+		// rebroadcast immediatly
+		if(state.mWeAreGroupOwner) {
+			broadcastData(data);
+		}
 	}
 	
 	public class ServerConnectionThread extends Thread {
