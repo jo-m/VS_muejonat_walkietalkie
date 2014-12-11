@@ -1,4 +1,4 @@
-package com.example.testwifi;
+package ch.ethz.inf.vs.projectmuejonat.walkietalkie;
 
 import android.os.Build;
 

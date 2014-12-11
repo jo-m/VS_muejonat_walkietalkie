@@ -1,4 +1,4 @@
-package com.example.testwifi;
+package ch.ethz.inf.vs.projectmuejonat.walkietalkie;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,7 +33,9 @@ import android.view.MenuItem;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.testwifi.ConnectionState.Buddy;
+import ch.ethz.inf.vs.projectmuejonat.walkietalkie.ConnectionState.Buddy;
+
+import ch.ethz.inf.vs.projectmuejonat.walkietalkie.R;
 
 public class MainActivity extends Activity {
 

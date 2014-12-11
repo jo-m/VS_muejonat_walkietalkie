@@ -1,4 +1,4 @@
-package com.example.testwifi;
+package ch.ethz.inf.vs.projectmuejonat.walkietalkie;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
