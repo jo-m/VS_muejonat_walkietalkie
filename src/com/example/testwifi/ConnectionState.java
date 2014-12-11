@@ -61,6 +61,20 @@ public class ConnectionState {
 		return null;
 	}
 	
+	public Collection<InetSocketAddress> getClientAddresses() {
+		ArrayList<InetSocketAddress> ret = new ArrayList<InetSocketAddress>();
+		for(Buddy b: buddies.values()) {
+			if(b.addr != null) {
+				int port = b.serverPort;
+				if(port < 0) {
+					port = MainActivity.SERVER_PORT;
+				}
+				ret.add(new InetSocketAddress(b.addr, port));
+			}
+		}
+		return ret;
+	}
+	
 	public synchronized Buddy getBuddy(String deviceAddress) {
 		Buddy b = buddies.get(deviceAddress);
 		if(b == null) {

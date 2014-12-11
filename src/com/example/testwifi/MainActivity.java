@@ -152,10 +152,53 @@ public class MainActivity extends Activity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		int id = item.getItemId();
 		if (id == R.id.action_send) {
-			sendMessage(("Hallo anderes Gerät, hier spricht "+getMacAddress()).getBytes());
+			String msg = "Hallo anderes Gerät, hier spricht "+getMacAddress();
+			
+			if(state.mWeAreGroupOwner) {
+				broadcastData(msg.getBytes());
+			} else {
+				sendData(msg.getBytes());
+			}
+			
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
+	}
+	
+	/**
+	 * Only works if we are server!!
+	 */
+	private void broadcastData(byte[] data) {
+		if(!state.mWeAreGroupOwner) {
+			Toast.makeText(this, "NOPE, we are not group owner", Toast.LENGTH_SHORT).show();
+			return;
+		}
+		Toast.makeText(this, "DATA BROADCAST = " + new String(data), Toast.LENGTH_SHORT).show();
+		byte[] msg = NetworkProtocol.composeMessage(NetworkProtocol.CMD_SEND_DATA, data);
+		for(InetSocketAddress a: state.getClientAddresses()) {
+			sendMessageToAddr(msg, a);
+		}
+	}
+	
+	/**
+	 * Only works if we are client!!
+	 */
+	private void sendData(byte[] data) {
+		if(state.mWeAreGroupOwner) {
+			Toast.makeText(this, "NOPE, we are group owner", Toast.LENGTH_SHORT).show();
+			return;
+		}
+		Toast.makeText(this, "DATA SEND = " + new String(data), Toast.LENGTH_SHORT).show();
+		byte[] msg = NetworkProtocol.composeMessage(NetworkProtocol.CMD_SEND_DATA, data);
+		sendMessageToAddr(msg, state.getGroupOwnerConnectionInfos());
+	}
+	
+	/**
+	 * Must be called on UI thread!
+	 * @param msg
+	 */
+	private void dataReceived(byte[] data) {
+		Toast.makeText(this, "DATA RECEIVED = " + new String(data), Toast.LENGTH_SHORT).show();
 	}
 	
 	public class ServerConnectionThread extends Thread {
@@ -166,26 +209,24 @@ public class MainActivity extends Activity {
 			this.client = client;
 		}
 		
-		private void messageReceived(final String msg) {
-			runOnUiThread(new Runnable() {
-				@Override
-				public void run() {
-					MainActivity.this.messageReceiced(msg);
-				}
-			});
-		}
-		
 		public void run() {
 			try {
 				InputStream in = client.getInputStream();
 				
 				String cmd = NetworkProtocol.getMessageType(in);
-				if(cmd.equals(NetworkProtocol.CMD_REGISTER_CLIENT)) {
+				if(cmd != null && cmd.equals(NetworkProtocol.CMD_REGISTER_CLIENT)) {
 					String mac = NetworkProtocol.getMacAddress(in);
 					state.updateClientIp(mac, client.getInetAddress());
 				}
-				if(cmd.equals(NetworkProtocol.CMD_SEND_DATA)) {
-					messageReceived("got data from a client: " + NetworkProtocol.getData(in));
+				if(cmd != null && cmd.equals(NetworkProtocol.CMD_SEND_DATA)) {
+					final byte[] data = NetworkProtocol.getData(in);
+					
+					runOnUiThread(new Runnable() {
+						@Override
+						public void run() {
+							MainActivity.this.dataReceived(data);
+						}
+					});
 				}
 				
 	            in.close();
@@ -195,23 +236,11 @@ public class MainActivity extends Activity {
 	}
 	
 	/**
-	 * Must be called on UI thread!
-	 * @param msg
-	 */
-	private void messageReceiced(String msg) {
-		Log.d(LOGTAG, "FINISHED RECEIVING ret=" + msg);
-		Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
-	}
-	
-	/**
 	 * This has to be called on UI thread!
 	 */
-	private void sendMessage(final byte[] msg) {
-		final InetSocketAddress addr = state.getGroupOwnerConnectionInfos();
-		if(addr == null) {
-			Toast.makeText(this, "not connected, sorry", Toast.LENGTH_SHORT).show();
+	private void sendMessageToAddr(final byte[] msg, final InetSocketAddress addr) {
+		if(addr == null)
 			return;
-		}
 		
 		new Thread() {
 			public void run() {
@@ -253,7 +282,7 @@ public class MainActivity extends Activity {
 			}
 				
 			byte[] msg = NetworkProtocol.composeMessage(NetworkProtocol.CMD_REGISTER_CLIENT, getMacAddress());
-			sendMessage(msg);
+			sendMessageToAddr(msg, state.getGroupOwnerConnectionInfos());
 	    }
 	}
 	
