@@ -11,6 +11,7 @@ import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
 import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pInfo;
+import android.util.Log;
 
 public class ConnectionState {
 	private final String LOGTAG = "WIFI_P2P_VS";
@@ -22,14 +23,35 @@ public class ConnectionState {
 	public boolean mConnected = false;
 	
 	private final HashMap<String, Buddy> buddies = new HashMap<String, Buddy>();
-	private Collection<WifiP2pDevice> mGroupClients = null;
 	
 	public ConnectionState(String ourAddress) {
 		this.ourAddress = ourAddress;
 	}
 	
+	public static boolean macAddressAlmostEqual(String a, String b) {
+		int distance = 0;
+		if(a == null || b == null)
+			return false;
+		if(a.length() != b.length())
+			return false;
+		for(int i = 0; i < a.length(); i++) {
+			distance += (a.codePointAt(i) == b.codePointAt(i)) ? 0 : 1;
+		}
+		return distance <= 2 ;
+	}
+	
+	private boolean almostOurAddress(String addr) {
+		return macAddressAlmostEqual(ourAddress, addr);
+	}
+	
 	public synchronized InetSocketAddress getGroupOwnerConnectionInfos() {
 		if(mGroupOwner == null) {
+			// Hacky hack make an exception... we just assume default port but do
+			// not know the name etc (no bonjour discovery made)
+			Log.d(LOGTAG, "getGroupOwnerConnectionInfos HACK " + mConnected + " " + !mWeAreGroupOwner + " " + mGroupOwnerAddress);
+			if(mConnected && !mWeAreGroupOwner && mGroupOwnerAddress != null) {
+				return new InetSocketAddress(mGroupOwnerAddress, MainActivity.SERVER_PORT);
+			}
 			return null;
 		}
 		Buddy b = getBuddy(mGroupOwner.deviceAddress);
@@ -45,11 +67,35 @@ public class ConnectionState {
         	b = new Buddy();
         	buddies.put(deviceAddress, b);
         }
+		
 		return b;
 	}
 	
+	private String findSimilarBuddyAddress(String addr) {
+		for(String a: buddies.keySet()) {
+			if(macAddressAlmostEqual(addr, a)) {
+				return a;
+			}
+		}
+		return null;
+	}
+	
+	public synchronized void updateClientIp(String deviceAddress, InetAddress addr) {
+		if(almostOurAddress(deviceAddress)) {
+			return;
+		}
+		String key = findSimilarBuddyAddress(deviceAddress);
+		if(key == null) {
+			return;
+		}
+		Buddy b = getBuddy(key);
+		if(b.device == null)
+			Log.i(LOGTAG, "updateClientIp but DEVICE IS NULL key="+key);
+		b.addr = addr;
+	}
+	
 	public synchronized void updateStatus(WifiP2pDevice device) {
-		if(device.deviceAddress.equals(ourAddress)) {
+		if(almostOurAddress(device.deviceAddress)) {
 			return;
 		}
 		Buddy b = getBuddy(device.deviceAddress);
@@ -69,10 +115,17 @@ public class ConnectionState {
 		if(peers == null) {
 			return;
 		}
+		updateStatus(peers.getDeviceList());
+	}
+	
+	public synchronized void updateStatus(Collection<WifiP2pDevice> peers) {
+		if(peers == null) {
+			return;
+		}
 		
 		// add new
 		ArrayList<String> addresses = new ArrayList<String>();
-		for(final WifiP2pDevice device: peers.getDeviceList()) {
+		for(final WifiP2pDevice device: peers) {
 			addresses.add(device.deviceAddress);
 			updateStatus(device);
 		}
@@ -114,7 +167,6 @@ public class ConnectionState {
 			mWeAreGroupOwner = false;
 			mConnected = false;
 			mGroupOwnerAddress = null;
-			mGroupClients = null;
     	}
 	}
 	
@@ -125,11 +177,11 @@ public class ConnectionState {
 		
 		mGroupOwner = group.getOwner();
 		mWeAreGroupOwner = group.isGroupOwner();
-		mGroupClients = group.getClientList();
+		updateStatus(group.getClientList());
 	}
 	
 	public synchronized void updateStatus(WifiP2pDevice device, String deviceName) {
-		if(device.deviceAddress.equals(ourAddress)) {
+		if(almostOurAddress(device.deviceAddress)) {
 			return;
 		}
 		Buddy b = getBuddy(device.deviceAddress);
@@ -138,7 +190,7 @@ public class ConnectionState {
 	}
 	
 	public synchronized void updateStatus(WifiP2pDevice device, int deviceServerPort) {
-		if(device.deviceAddress.equals(ourAddress)) {
+		if(almostOurAddress(device.deviceAddress)) {
 			return;
 		}
 		Buddy b = getBuddy(device.deviceAddress);
@@ -158,7 +210,7 @@ public class ConnectionState {
 		ArrayList<Buddy> ret = new ArrayList<Buddy>();
 		for(Buddy b: buddies.values()) {
 			// thats ourselves...
-			if(b.device.deviceAddress.equals(ourAddress)) {
+			if(almostOurAddress(b.device.deviceAddress)) {
 				continue;
 			}
 			// thats not what we are interested in
@@ -188,8 +240,12 @@ public class ConnectionState {
 		int serverPort = -1;
 		boolean rightService = false;
 		WifiP2pInfo connection = null;
+		InetAddress addr;
 		
 		public String toString() {
+			if(device == null) {
+				return "device = <null>";
+			}
 			String statusText = "<null>";
 			switch(device.status) {
 			case WifiP2pDevice.AVAILABLE:
@@ -214,6 +270,7 @@ public class ConnectionState {
 					", rightService="+rightService+
 					", status="+statusText+"("+device.status+")"+
 					", grpOwner="+device.isGroupOwner()+
+					", addr="+(addr == null ? "null" : addr.toString())+
 					", deviceName="+deviceName+"}";
 		}
 	}
@@ -230,10 +287,6 @@ public class ConnectionState {
 		s.append(mGroupOwnerAddress + "\n");
 		s.append("buddies.size()=");
 		s.append(buddies.size() + "\n");
-		if(mGroupClients != null) {
-			s.append("mGroupClients.size()=");
-			s.append(mGroupClients.size() + "\n");
-		}
 		
 		return s.toString();
 	}

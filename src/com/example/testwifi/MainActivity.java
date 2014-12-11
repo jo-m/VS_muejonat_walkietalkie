@@ -54,8 +54,9 @@ public class MainActivity extends Activity {
 	private final static String LOGTAG = "WIFI_P2P_VS";
 	private final String SERVICE_NAME = "_walkietalkie._tcp";
 	
-	private final static int SERVER_PORT = 42634;
+	public final static int SERVER_PORT = 42634;
 	private TextView mConnStatTextView;
+	private RegisterClientAsyncTask mRegisterTask;
 	
 	private String getMacAddress() {
 		WifiManager wifiMan = (WifiManager) this.getSystemService(
@@ -115,11 +116,13 @@ public class MainActivity extends Activity {
         mStatusUpdateTask = new StatusDisplayAsyncTask();
         mConnectionTask = new ConnectionAsyncTask();
         mServerTask = new ServerAsyncTask();
+        mRegisterTask = new RegisterClientAsyncTask();
         // execute tasks in parallel
 	    mDiscoveryTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 	    mStatusUpdateTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 	    mConnectionTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 	    mServerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+	    mRegisterTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 	}
 	
 	@Override
@@ -130,6 +133,7 @@ public class MainActivity extends Activity {
 	    mStatusUpdateTask.stop();
 	    mConnectionTask.stop();
 	    mServerTask.stop();
+	    mRegisterTask.stop();
 	    
 	    mManager.removeLocalService(mChannel, mServiceInfo, null);
 	    mManager.removeServiceRequest(mChannel, mServiceRequest, null);
@@ -162,36 +166,46 @@ public class MainActivity extends Activity {
 			this.client = client;
 		}
 		
+		private void messageReceived(final String msg) {
+			runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					MainActivity.this.messageReceiced(msg);
+				}
+			});
+		}
+		
 		public void run() {
 			try {
 				InputStream in = client.getInputStream();
 				
-				byte[] _buf = new byte[1024 * 1024];
-				int len;
-				int offset = 0;
-				while((len = in.read(_buf, offset, _buf.length - offset)) >= 0) {
-					offset += len;
+				String cmd = NetworkProtocol.getMessageType(in);
+				if(cmd.equals(NetworkProtocol.CMD_REGISTER_CLIENT)) {
+					String mac = NetworkProtocol.getMacAddress(in);
+					state.updateClientIp(mac, client.getInetAddress());
 				}
-				final byte[] buf = Arrays.copyOfRange(_buf, 0, offset);
-	            
-	            runOnUiThread(new Runnable() {
-					@Override
-					public void run() {
-						messageReceiced(buf);
-					}
-				});
-	            
+				if(cmd.equals(NetworkProtocol.CMD_SEND_DATA)) {
+					messageReceived("got data from a client: " + NetworkProtocol.getData(in));
+				}
+				
 	            in.close();
 	            client.close();
 			} catch (IOException e) {}
 		}
 	}
 	
-	private void messageReceiced(byte[] msg) {
-		Log.d(LOGTAG, "FINISHED RECEIVING ret=" + new String(msg));
-		Toast.makeText(this, new String(msg), Toast.LENGTH_SHORT).show();
+	/**
+	 * Must be called on UI thread!
+	 * @param msg
+	 */
+	private void messageReceiced(String msg) {
+		Log.d(LOGTAG, "FINISHED RECEIVING ret=" + msg);
+		Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
 	}
 	
+	/**
+	 * This has to be called on UI thread!
+	 */
 	private void sendMessage(final byte[] msg) {
 		final InetSocketAddress addr = state.getGroupOwnerConnectionInfos();
 		if(addr == null) {
@@ -213,6 +227,34 @@ public class MainActivity extends Activity {
 				}
 			}
 		}.start();
+	}
+	
+	private class RegisterClientAsyncTask extends AsyncTask<Void, Void, Void> {
+		private boolean stop = false;
+
+		public void stop() {
+			stop = true;
+		}
+
+		@Override
+		protected Void doInBackground(Void... params) {
+			while(!stop) {
+				publishProgress();
+				try {
+					Thread.sleep(5 * 1000);
+				} catch (InterruptedException e) {}
+			}
+			return null;
+		}
+		
+		protected void onProgressUpdate(Void... progress) {
+			if(!state.mConnected || state.mWeAreGroupOwner) {
+				return;
+			}
+				
+			byte[] msg = NetworkProtocol.composeMessage(NetworkProtocol.CMD_REGISTER_CLIENT, getMacAddress());
+			sendMessage(msg);
+	    }
 	}
 	
 	public class ServerAsyncTask extends AsyncTask<Void, Void, Void> {
@@ -271,6 +313,10 @@ public class MainActivity extends Activity {
 	    DnsSdServiceResponseListener servListener = new DnsSdServiceResponseListener() {
 	        @Override
 	        public void onDnsSdServiceAvailable(String instanceName, String registrationType, WifiP2pDevice device) {
+	        	if(ConnectionState.macAddressAlmostEqual(device.deviceAddress, getMacAddress())) {
+	        		return;
+	        	}
+	        	
 	        	Buddy b = state.getBuddy(device.deviceAddress);
 			
 				b.device = device;
@@ -315,7 +361,7 @@ public class MainActivity extends Activity {
 		@Override
 		protected Void doInBackground(Void... params) {
 			while(!stop) {
-				publishProgress();	
+				publishProgress();
 				try {
 					Thread.sleep(1 * 1000);
 				} catch (InterruptedException e) {}
@@ -324,11 +370,7 @@ public class MainActivity extends Activity {
 		}
 		
 		protected void onProgressUpdate(Void... progress) {
-			try {
-				mTextView.setText(state.buddiesToString());
-			} catch (NullPointerException e) {
-				mTextView.setText("<NullPointerException>");
-			}
+			mTextView.setText(state.buddiesToString());
 			mStatTextView.setText(state.toString());
 	    }
 	}
