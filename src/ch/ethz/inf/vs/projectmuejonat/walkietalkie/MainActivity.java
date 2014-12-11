@@ -10,6 +10,9 @@ import java.net.SocketException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import android.app.Activity;
 import android.content.BroadcastReceiver;
@@ -60,6 +63,7 @@ public class MainActivity extends Activity {
 	public final static int SERVER_PORT = 42634;
 	private TextView mConnStatTextView;
 	private RegisterClientAsyncTask mRegisterTask;
+	private ReceivedMessageShower mMessageShowTask;
 	
 	private String getMacAddress() {
 		WifiManager wifiMan = (WifiManager) this.getSystemService(
@@ -120,12 +124,14 @@ public class MainActivity extends Activity {
         mConnectionTask = new ConnectionAsyncTask();
         mServerTask = new ServerAsyncTask();
         mRegisterTask = new RegisterClientAsyncTask();
+        mMessageShowTask = new ReceivedMessageShower();
         // execute tasks in parallel
 	    mDiscoveryTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 	    mStatusUpdateTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 	    mConnectionTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 	    mServerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 	    mRegisterTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+	    mMessageShowTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 	}
 	
 	@Override
@@ -137,6 +143,7 @@ public class MainActivity extends Activity {
 	    mConnectionTask.stop();
 	    mServerTask.stop();
 	    mRegisterTask.stop();
+	    mMessageShowTask.stop();
 	    
 	    mManager.removeLocalService(mChannel, mServiceInfo, null);
 	    mManager.removeServiceRequest(mChannel, mServiceRequest, null);
@@ -206,9 +213,41 @@ public class MainActivity extends Activity {
 		}
 		Toast.makeText(this, "DATA RECEIVED = " + new String(data), Toast.LENGTH_SHORT).show();
 		
+		messagesToProcess.offer(data);
+		
 		// rebroadcast immediatly
 		if(state.mWeAreGroupOwner) {
 			broadcastData(data);
+		}
+	}
+	
+	private BlockingQueue<byte[]> messagesToProcess = new ArrayBlockingQueue<byte []>(100);
+	
+	private class ReceivedMessageShower extends AsyncTask<Void, Void, Void> {
+		private boolean stop = false;
+
+		public void stop() {
+			stop = true;
+		}
+
+		@Override
+		protected Void doInBackground(Void... params) {
+			while(!stop) {
+				try {
+					Log.d(LOGTAG, "POLLING");
+					byte[] data = messagesToProcess.poll(1000, TimeUnit.MILLISECONDS);
+					if(data != null) {
+						Log.d(LOGTAG, "GOT SOMETHING len=" + data.length);
+					}
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e1) {}
+				}
+			}
+			return null;
 		}
 	}
 	
@@ -258,7 +297,7 @@ public class MainActivity extends Activity {
 				Socket socket = new Socket();
 				try {
 					socket.bind(null);
-					socket.connect(addr, 1000);
+					socket.connect(addr, 5000);
 					
 					socket.getOutputStream().write(msg);
 					socket.close();
