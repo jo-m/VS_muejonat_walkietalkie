@@ -54,17 +54,17 @@ public abstract class WifiActivity extends Activity {
 	private WifiP2pDnsSdServiceRequest mServiceRequest;
 	private MessageDeduplicator mDeduplicator = new MessageDeduplicator();
 	
-	private DiscoveryAsyncTask mDiscoveryTask;
-	private StatusDisplayAsyncTask mStatusUpdateTask;
-	private ConnectionAsyncTask mConnectionTask;
-	private ServerAsyncTask mServerTask;
+	private DiscoveryBGThread mDiscoveryTask;
+	private StatusDisplayBGThread mStatusUpdateTask;
+	private ConnectionBGThread mConnectionTask;
+	private ServerBGThread mServerTask;
 	
 	private final static String LOGTAG = "WIFI_P2P_VS";
 	private final String SERVICE_NAME = "_walkietalkie._tcp";
 	
 	public final static int SERVER_PORT = 42634;
 	private TextView mConnStatTextView;
-	private RegisterClientAsyncTask mRegisterTask;
+	private RegisterClientBGThread mRegisterTask;
 	private ReceivedMessageShower mMessageShowTask;
 	
 	private String getMacAddress() {
@@ -121,31 +121,31 @@ public abstract class WifiActivity extends Activity {
 	    mServiceRequest = WifiP2pDnsSdServiceRequest.newInstance();
         mManager.addServiceRequest(mChannel, mServiceRequest, null);
         
-        mDiscoveryTask = new DiscoveryAsyncTask();
-        mStatusUpdateTask = new StatusDisplayAsyncTask();
-        mConnectionTask = new ConnectionAsyncTask();
-        mServerTask = new ServerAsyncTask();
-        mRegisterTask = new RegisterClientAsyncTask();
+        mDiscoveryTask = new DiscoveryBGThread();
+        mStatusUpdateTask = new StatusDisplayBGThread();
+        mConnectionTask = new ConnectionBGThread();
+        mServerTask = new ServerBGThread();
+        mRegisterTask = new RegisterClientBGThread();
         mMessageShowTask = new ReceivedMessageShower();
         // execute tasks in parallel
-	    mDiscoveryTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-	    mStatusUpdateTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-	    mConnectionTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-	    mServerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-	    mRegisterTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-	    mMessageShowTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+	    mDiscoveryTask.start();
+	    mStatusUpdateTask.start();
+	    mConnectionTask.start();
+	    mServerTask.start();
+	    mRegisterTask.start();
+	    mMessageShowTask.start();
 	}
 	
 	@Override
 	protected void onPause() {
 	    super.onPause();
 	    unregisterReceiver(mReceiver);
-	    mDiscoveryTask.stop();
-	    mStatusUpdateTask.stop();
-	    mConnectionTask.stop();
-	    mServerTask.stop();
-	    mRegisterTask.stop();
-	    mMessageShowTask.stop();
+	    mDiscoveryTask.setStop();
+	    mStatusUpdateTask.setStop();
+	    mConnectionTask.setStop();
+	    mServerTask.setStop();
+	    mRegisterTask.setStop();
+	    mMessageShowTask.setStop();
 	    
 	    mManager.removeLocalService(mChannel, mServiceInfo, null);
 	    mManager.removeServiceRequest(mChannel, mServiceRequest, null);
@@ -217,18 +217,17 @@ public abstract class WifiActivity extends Activity {
 	
 	private BlockingQueue<byte[]> messagesToProcess = new ArrayBlockingQueue<byte []>(100);
 	
-	private class ReceivedMessageShower extends AsyncTask<Void, Void, Void> {
+	private class ReceivedMessageShower extends Thread {
 		private boolean stop = false;
 
-		public void stop() {
+		public void setStop() {
 			stop = true;
 		}
 
 		@Override
-		protected Void doInBackground(Void... params) {
+		public void run() {
 			while(!stop) {
 				try {
-					Log.d(LOGTAG, "POLLING");
 					final byte[] data = messagesToProcess.poll(1000, TimeUnit.MILLISECONDS);
 					if(data != null) {
 						runOnUiThread(new Runnable() {
@@ -246,7 +245,6 @@ public abstract class WifiActivity extends Activity {
 					} catch (InterruptedException e1) {}
 				}
 			}
-			return null;
 		}
 	}
 	
@@ -304,25 +302,24 @@ public abstract class WifiActivity extends Activity {
 		}.start();
 	}
 	
-	private class RegisterClientAsyncTask extends AsyncTask<Void, Void, Void> {
+	private class RegisterClientBGThread extends Thread {
 		private boolean stop = false;
 
-		public void stop() {
+		public void setStop() {
 			stop = true;
 		}
 
 		@Override
-		protected Void doInBackground(Void... params) {
+		public void run() {
 			while(!stop) {
-				publishProgress();
+				tryToRegister();
 				try {
 					Thread.sleep(5 * 1000);
 				} catch (InterruptedException e) {}
 			}
-			return null;
 		}
 		
-		protected void onProgressUpdate(Void... progress) {
+		private void tryToRegister() {
 			if(!state.mConnected || state.mWeAreGroupOwner) {
 				return;
 			}
@@ -332,10 +329,10 @@ public abstract class WifiActivity extends Activity {
 	    }
 	}
 	
-	private class ServerAsyncTask extends AsyncTask<Void, Void, Void> {
+	private class ServerBGThread extends Thread {
 		private ServerSocket serverSocket;
 		
-		public void stop() {
+		public void setStop() {
 			try {
 				serverSocket.close();
 			} catch(Exception e) {
@@ -344,7 +341,7 @@ public abstract class WifiActivity extends Activity {
 		}
 		
 	    @Override
-	    protected Void doInBackground(Void... params) {
+	    public void run() {
 	        try {
 	            serverSocket = new ServerSocket(SERVER_PORT);
 	            
@@ -362,7 +359,6 @@ public abstract class WifiActivity extends Activity {
 	        } catch (IOException e) {
 	            e.printStackTrace();
 	        }
-	        return null;
 	    }
 	}
 	
@@ -405,15 +401,15 @@ public abstract class WifiActivity extends Activity {
 	    mManager.setDnsSdResponseListeners(mChannel, servListener, txtListener);
 	}
 	
-	private class DiscoveryAsyncTask extends AsyncTask<Void, Void, Void> {
+	private class DiscoveryBGThread extends Thread {
 		private boolean stop = false;
 		
-		public void stop() {
+		public void setStop() {
 			stop = true;
 		}
 
 		@Override
-		protected Void doInBackground(Void... params) {
+		public void run(){
 			while(!stop) {
 				mManager.discoverServices(mChannel, null);
 				mManager.requestConnectionInfo(mChannel, null);
@@ -422,59 +418,58 @@ public abstract class WifiActivity extends Activity {
 					Thread.sleep(10 * 1000);
 				} catch (InterruptedException e) {}
 			}
-			return null;
 		}
 	}
 	
-	private class StatusDisplayAsyncTask extends AsyncTask<Void, Void, Void> {
+	private class StatusDisplayBGThread extends Thread {
 		private boolean stop = false;
 		
-		public void stop() {
+		public void setStop() {
 			stop = true;
 		}
 
 		@Override
-		protected Void doInBackground(Void... params) {
+		public void run() {
 			while(!stop) {
-				publishProgress();
+				updateStatus();
 				try {
 					Thread.sleep(1 * 1000);
 				} catch (InterruptedException e) {}
 			}
-			return null;
 		}
 		
-		protected void onProgressUpdate(Void... progress) {
-			mTextView.setText(state.buddiesToString());
-			mStatTextView.setText(state.toString());
+		private void updateStatus() {
+			runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					mTextView.setText(state.buddiesToString());
+					mStatTextView.setText(state.toString());
+				}
+			});
+			
 	    }
 	}
 	
-	private class ConnectionAsyncTask extends AsyncTask<Void, Void, Void> {
+	private class ConnectionBGThread extends Thread {
 		private boolean stop = false;
 
-		public void stop() {
+		public void setStop() {
 			stop = true;
 		}
 
 		@Override
-		protected Void doInBackground(Void... params) {
+		public void run() {
 			while(!stop) {
-				publishProgress();	
+				manageConnection();
 				try {
 					Thread.sleep(5 * 1000);
 				} catch (InterruptedException e) {}
 			}
-			return null;
 		}
-		
-		protected void onProgressUpdate(Void... progress) {
-			manageConnection();
-	    }
 	}
 	
 	private void manageConnection() {
-		StringBuilder connState = new StringBuilder();
+		final StringBuilder connState = new StringBuilder();
 
 		if(state.connected()) {
 			connState.append("CONNECTED\n");
@@ -510,6 +505,11 @@ public abstract class WifiActivity extends Activity {
 			}
 		}
 		
-		mConnStatTextView.setText(connState.toString());
+		runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				mConnStatTextView.setText(connState.toString());
+			}
+		});
 	}
 }
