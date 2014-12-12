@@ -33,8 +33,10 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ViewSwitcher;
 
 import ch.ethz.inf.vs.projectmuejonat.walkietalkie.ConnectionState.Buddy;
 
@@ -285,9 +287,6 @@ public class MainActivity extends Activity {
 		}
 	}
 	
-	/**
-	 * This has to be called on UI thread!
-	 */
 	private void sendMessageToAddr(final byte[] msg, final InetSocketAddress addr) {
 		if(addr == null)
 			return;
