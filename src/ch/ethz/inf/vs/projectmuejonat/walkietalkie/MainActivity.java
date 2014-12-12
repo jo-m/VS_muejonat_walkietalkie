@@ -1,8 +1,19 @@
 package ch.ethz.inf.vs.projectmuejonat.walkietalkie;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+
 import android.annotation.SuppressLint;
+import android.media.MediaPlayer;
+import android.media.MediaRecorder;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnTouchListener;
@@ -15,6 +26,12 @@ public class MainActivity extends WifiActivity implements OnTouchListener  {
 	private ImageButton mSpeakButton;
 	private TextView mDisplay;
 	private DisplayAsyncTask mDisplayTask;
+	
+	private static String mSendTempFile;
+	private static String mPlayTempFile;
+	
+	private MediaRecorder mRecorder = null;
+	private MediaPlayer   mPlayer = null;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -23,6 +40,9 @@ public class MainActivity extends WifiActivity implements OnTouchListener  {
 		mSpeakButton.setOnTouchListener(this);
 		
 		mDisplay = (TextView) findViewById(R.id.screenText);
+		
+		mSendTempFile = getFilesDir() + "/send_temp.3gp";
+		mPlayTempFile = getFilesDir() + "/play_temp.3gp";
 	}
 	
 	@Override
@@ -38,6 +58,16 @@ public class MainActivity extends WifiActivity implements OnTouchListener  {
 	    super.onPause();
 	    
 	    mDisplayTask.stop();
+	    
+	    if (mRecorder != null) {
+            mRecorder.release();
+            mRecorder = null;
+        }
+
+        if (mPlayer != null) {
+            mPlayer.release();
+            mPlayer = null;
+        }
 	}
 
 	@Override
@@ -46,11 +76,59 @@ public class MainActivity extends WifiActivity implements OnTouchListener  {
 	}
 	
 	private void startRecording() {
+		mRecorder = new MediaRecorder();
+        mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+        mRecorder.setOutputFile(mSendTempFile);
+        mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+
+        try {
+            mRecorder.prepare();
+        } catch (IOException e) {
+        	e.printStackTrace();
+        }
+
+        mRecorder.start();
+	}
+	
+	private byte[] fileToBuf(String fname) {
+		InputStream in;
+		try {
+			in = new BufferedInputStream(new FileInputStream(fname));
+		} catch (FileNotFoundException e) {
+			return null;
+		}
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		byte[] buffer = new byte[100 * 1024];
 		
+		try {
+			int len;
+			while ((len = in.read(buffer)) != -1) {
+			    bos.write(buffer, 0, len);
+			}
+		} catch (IOException e) {
+			return null;
+		}
+		try {
+			bos.close();
+			in.close();
+		} catch (IOException e) {}
+		return bos.toByteArray();
 	}
 	
 	private void stopRecording() {
-		publishData("blah".getBytes());
+		try {
+			mRecorder.stop();
+	        mRecorder.release();
+	        mRecorder = null;
+		} catch (java.lang.RuntimeException e) {
+			e.printStackTrace();
+			return;
+		}
+		
+        byte[] data = fileToBuf(mSendTempFile);
+        Toast.makeText(this, "RECORDED len="+new File(mSendTempFile).length(), Toast.LENGTH_SHORT).show();
+        publishData(data);
 	}
 
 	@SuppressLint("ClickableViewAccessibility")
@@ -94,6 +172,12 @@ public class MainActivity extends WifiActivity implements OnTouchListener  {
 				sb.append("CONNECTED\n");
 			} else {
 				sb.append("NOT CONNECTED\n");
+			}
+			
+			if(state.mWeAreGroupOwner) {
+				sb.append("GO\n");
+			} else {
+				sb.append("CL\n");
 			}
 			
 			mDisplay.setText(sb.toString());
