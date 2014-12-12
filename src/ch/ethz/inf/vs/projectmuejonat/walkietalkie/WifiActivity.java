@@ -34,6 +34,8 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewSwitcher;
@@ -107,6 +109,21 @@ public abstract class WifiActivity extends Activity {
 	    
 	    setupService();
 	    setupServiceListeners();
+	    setupDebugButtons();
+	}
+	
+	private void setupDebugButtons() {
+		Button debugButton = (Button) findViewById(R.id.debugButton);
+		debugButton.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {((ViewSwitcher) findViewById(R.id.viewSwitcher)).showNext();}
+		});
+		
+		debugButton = (Button) findViewById(R.id.debugButton2);
+		debugButton.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {((ViewSwitcher) findViewById(R.id.viewSwitcher)).showNext();}
+		});
 	}
 	
 	@Override

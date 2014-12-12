@@ -1,47 +1,43 @@
 package ch.ethz.inf.vs.projectmuejonat.walkietalkie;
 
 import android.annotation.SuppressLint;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
-import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ViewSwitcher;
 
 public class MainActivity extends WifiActivity implements OnTouchListener  {
 	
 	private ImageButton mSpeakButton;
+	private TextView mDisplay;
+	private DisplayAsyncTask mDisplayTask;
 
-	private void setupDebugButtons() {
-		Button debugButton = (Button) findViewById(R.id.debugButton);
-		debugButton.setOnClickListener(new OnClickListener() {
-			@Override
-			public void onClick(View v) {
-				ViewSwitcher vs = (ViewSwitcher) findViewById(R.id.viewSwitcher);
-				vs.showNext();
-			}
-		});
-		
-		debugButton = (Button) findViewById(R.id.debugButton2);
-		debugButton.setOnClickListener(new OnClickListener() {
-			@Override
-			public void onClick(View v) {
-				ViewSwitcher vs = (ViewSwitcher) findViewById(R.id.viewSwitcher);
-				vs.showNext();
-			}
-		});
-	}
-	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		mSpeakButton = (ImageButton) findViewById(R.id.speakButton);
 		mSpeakButton.setOnTouchListener(this);
 		
-		setupDebugButtons();
+		mDisplay = (TextView) findViewById(R.id.screenText);
+	}
+	
+	@Override
+	protected void onResume() {
+	    super.onResume();
+	    
+	    mDisplayTask = new DisplayAsyncTask();
+	    mDisplayTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+	}
+	
+	@Override
+	protected void onPause() {
+	    super.onPause();
+	    
+	    mDisplayTask.stop();
 	}
 
 	@Override
@@ -69,5 +65,38 @@ public class MainActivity extends WifiActivity implements OnTouchListener  {
 	    	break;
 	    }
 		return false;
+	}
+	
+	private class DisplayAsyncTask extends AsyncTask<Void, Void, Void> {
+		private boolean stop = false;
+		
+		public void stop() {
+			stop = true;
+		}
+
+		@Override
+		protected Void doInBackground(Void... params) {
+			while(!stop) {
+				publishProgress();
+				try {
+					Thread.sleep(5 * 1000);
+				} catch (InterruptedException e) {}
+			}
+			return null;
+		}
+		
+		@Override
+		public void onProgressUpdate(Void... values) {
+			StringBuilder sb = new StringBuilder();
+			ConnectionState state = MainActivity.this.getState();
+			
+			if(state.mConnected) {
+				sb.append("CONNECTED\n");
+			} else {
+				sb.append("NOT CONNECTED\n");
+			}
+			
+			mDisplay.setText(sb.toString());
+		}
 	}
 }
