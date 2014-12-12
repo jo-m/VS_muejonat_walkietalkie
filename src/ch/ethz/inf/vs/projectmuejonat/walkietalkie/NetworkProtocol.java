@@ -9,6 +9,9 @@ import java.util.Arrays;
 public class NetworkProtocol {
 	/*
 	 * Stateless protocoll. Each connection means a new message.
+	 * We only have two commands. The protocoll is very simple, to
+	 * send a command with data just append the data to the command.
+	 * All commands must have length 4bytes because of this.
 	 */
 	
 	public static final int CMD_LEN_BS = 4;

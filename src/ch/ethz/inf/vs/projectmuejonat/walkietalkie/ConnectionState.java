@@ -13,6 +13,16 @@ import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pInfo;
 import android.util.Log;
 
+/**
+ * Here we manage all the connection state. This is a service
+ * class for the main activity/wifi activity.
+ * All the updateStatus functions are to be called
+ * from the outside.
+ * this class manages a list of buddies and their
+ * addresses, names we get via Bonjour/Service Discovery etc.
+ * @author joni
+ *
+ */
 public class ConnectionState {
 	private final String LOGTAG = "WIFI_P2P_VS";
 	private final String ourAddress;

@@ -69,6 +69,11 @@ public abstract class WifiActivity extends Activity {
 	private RegisterClientBGThread mRegisterTask;
 	private ReceivedMessageShower mMessageShowTask;
 	
+	/**
+	 * Get mac address of our wifi adapter, notice that this can
+	 * differ some bits from our Wifi P2P adapter address. 
+	 * @return
+	 */
 	private String getMacAddress() {
 		WifiManager wifiMan = (WifiManager) this.getSystemService(
                 Context.WIFI_SERVICE);
@@ -76,6 +81,9 @@ public abstract class WifiActivity extends Activity {
        	return wifiInf.getMacAddress();
 	}
 	
+	/**
+	 * Setup for service discovery/Bonjour
+	 */
 	private void setupService() {
 		//  Create a string map containing information about your service.
         Map<String, String> record = new HashMap<String, String>();
@@ -101,6 +109,7 @@ public abstract class WifiActivity extends Activity {
 	    mStatTextView = (TextView) findViewById(R.id.statTextView);
 	    mConnStatTextView = (TextView) findViewById(R.id.connStatTextView);
 	    
+	    // add intent filter for getting Wifi Framework intents
 	    mIntentFilter = new IntentFilter();
 	    mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
 	    mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
@@ -112,6 +121,9 @@ public abstract class WifiActivity extends Activity {
 	    setupDebugButtons();
 	}
 	
+	/**
+	 * Buttons to switch betw phone and debug view
+	 */
 	private void setupDebugButtons() {
 		Button debugButton = (Button) findViewById(R.id.debugButton);
 		debugButton.setOnClickListener(new OnClickListener() {
@@ -130,21 +142,25 @@ public abstract class WifiActivity extends Activity {
 	protected void onResume() {
 	    super.onResume();
 	    
+	    // init a new connection state on every app resume
 	    state = new ConnectionState(getMacAddress());
 	    
+	    // register our broadcast receiver to listen for events
 	    registerReceiver(mReceiver, mIntentFilter);
+	    // register our bonjour service in the net
 	    mManager.addLocalService(mChannel, mServiceInfo, null);
 	    
+	    // listen for bonojour services of other peers
 	    mServiceRequest = WifiP2pDnsSdServiceRequest.newInstance();
         mManager.addServiceRequest(mChannel, mServiceRequest, null);
         
+        // start all background tasks
         mDiscoveryTask = new DiscoveryBGThread();
         mStatusUpdateTask = new StatusDisplayBGThread();
         mConnectionTask = new ConnectionBGThread();
         mServerTask = new ServerBGThread();
         mRegisterTask = new RegisterClientBGThread();
         mMessageShowTask = new ReceivedMessageShower();
-        // execute tasks in parallel
 	    mDiscoveryTask.start();
 	    mStatusUpdateTask.start();
 	    mConnectionTask.start();
@@ -157,6 +173,8 @@ public abstract class WifiActivity extends Activity {
 	protected void onPause() {
 	    super.onPause();
 	    unregisterReceiver(mReceiver);
+	    
+	    // stop the background tasks
 	    mDiscoveryTask.setStop();
 	    mStatusUpdateTask.setStop();
 	    mConnectionTask.setStop();
@@ -164,6 +182,7 @@ public abstract class WifiActivity extends Activity {
 	    mRegisterTask.setStop();
 	    mMessageShowTask.setStop();
 	    
+	    // unregister eveything
 	    mManager.removeLocalService(mChannel, mServiceInfo, null);
 	    mManager.removeServiceRequest(mChannel, mServiceRequest, null);
 	    
@@ -177,6 +196,11 @@ public abstract class WifiActivity extends Activity {
 		return true;
 	}
 
+	/**
+	 * Class to send data from the child
+	 * class (MainActivity)
+	 * @param data
+	 */
 	protected void publishData(byte[] data) {
 		if(state.mWeAreGroupOwner) {
 			broadcastData(data);
@@ -185,10 +209,17 @@ public abstract class WifiActivity extends Activity {
 		}
 	}
 	
+	/**
+	 * Child MainActivity must implement this to receive
+	 * data. is called on every rx.
+	 * This already unwraps the data from the cmd (NetworkProtocol.CMD_SEND_DATA).
+	 * @param data
+	 */
 	protected abstract void showData(byte[] data);
 	
 	/**
 	 * Only works if we are server!!
+	 * This already wraps the data to send in the net protocoll (NetworkProtocol.CMD_SEND_DATA).
 	 */
 	private void broadcastData(byte[] data) {
 		if(!state.mWeAreGroupOwner) {
@@ -204,6 +235,7 @@ public abstract class WifiActivity extends Activity {
 	
 	/**
 	 * Only works if we are client!!
+	 * This already wraps the data to send in the net protocoll (NetworkProtocol.CMD_SEND_DATA).
 	 */
 	private void sendData(byte[] data) {
 		if(state.mWeAreGroupOwner) {
@@ -215,15 +247,12 @@ public abstract class WifiActivity extends Activity {
 		sendMessageToAddr(msg, state.getGroupOwnerConnectionInfos());
 	}
 	
-	/**
-	 * Must be called on UI thread!
-	 * @param msg
-	 */
 	private void dataReceived(byte[] data) {
 		if(!mDeduplicator.messageIsNew(data)) {
 			return;
 		}
 		
+		// put into queue
 		messagesToProcess.offer(data);
 		
 		// rebroadcast immediately
@@ -234,6 +263,14 @@ public abstract class WifiActivity extends Activity {
 	
 	private BlockingQueue<byte[]> messagesToProcess = new ArrayBlockingQueue<byte []>(100);
 	
+	/**
+	 * This thread looks on the queue which contains received messages.
+	 * Every time we got one, we call showData() with the data in
+	 * the queue. This is to serialize receive events which also
+	 * might arrive concurrently.
+	 * @author joni
+	 *
+	 */
 	private class ReceivedMessageShower extends Thread {
 		private boolean stop = false;
 
@@ -265,6 +302,14 @@ public abstract class WifiActivity extends Activity {
 		}
 	}
 	
+	/**
+	 * Every node continuously listens on the net, and
+	 * every time a connection is accepted a new ServerConnectionThread
+	 * is created and runned. It reads and processes network data
+	 * so the server thread can continue listening.
+	 * @author joni
+	 *
+	 */
 	private class ServerConnectionThread extends Thread {
 
 		private final Socket client;
@@ -299,6 +344,11 @@ public abstract class WifiActivity extends Activity {
 		}
 	}
 	
+	/**
+	 * Async method to send a raw byte message to an ip address
+	 * @param msg
+	 * @param addr
+	 */
 	private void sendMessageToAddr(final byte[] msg, final InetSocketAddress addr) {
 		if(addr == null)
 			return;
@@ -319,6 +369,13 @@ public abstract class WifiActivity extends Activity {
 		}.start();
 	}
 	
+	/**
+	 * Out of simplicity, every node runs this thread all the time.
+	 * It tries to communicate to the group owner our mac address
+	 * (and he can get over the socket also our ip address).
+	 * @author joni
+	 *
+	 */
 	private class RegisterClientBGThread extends Thread {
 		private boolean stop = false;
 
@@ -346,6 +403,13 @@ public abstract class WifiActivity extends Activity {
 	    }
 	}
 	
+	/**
+	 * The listener thead which runs on all node continuously.
+	 * Spins off a new {@link ServerConnectionThread} when a connection
+	 * arrives.
+	 * @author joni
+	 *
+	 */
 	private class ServerBGThread extends Thread {
 		private ServerSocket serverSocket;
 		
@@ -385,9 +449,15 @@ public abstract class WifiActivity extends Activity {
 		return state;
 	}
 
+	/**
+	 * Called in onResume, sets up service discovery listeners
+	 */
 	private void setupServiceListeners() {
 	    DnsSdTxtRecordListener txtListener = new DnsSdTxtRecordListener() {
 			@Override
+			/**
+			 * Yay we got a device which published its name
+			 */
 			public void onDnsSdTxtRecordAvailable(String domain, Map<String, String> record, WifiP2pDevice device) {
 				state.updateStatus(device, record.get("device_name"));
 
@@ -418,6 +488,12 @@ public abstract class WifiActivity extends Activity {
 	    mManager.setDnsSdResponseListeners(mChannel, servListener, txtListener);
 	}
 	
+	/**
+	 * Every 10sec, make a rediscovery of peers so we see new ones.
+	 * The results are not received here but in the broadcast receiver.
+	 * @author joni
+	 *
+	 */
 	private class DiscoveryBGThread extends Thread {
 		private boolean stop = false;
 		
@@ -438,6 +514,12 @@ public abstract class WifiActivity extends Activity {
 		}
 	}
 	
+	
+	/**
+	 * Display debug info
+	 * @author joni
+	 *
+	 */
 	private class StatusDisplayBGThread extends Thread {
 		private boolean stop = false;
 		
@@ -467,6 +549,11 @@ public abstract class WifiActivity extends Activity {
 	    }
 	}
 	
+	/**
+	 * Connect as soon as possible, reconnect, set state etc.
+	 * @author joni
+	 *
+	 */
 	private class ConnectionBGThread extends Thread {
 		private boolean stop = false;
 
