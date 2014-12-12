@@ -160,17 +160,6 @@ public abstract class WifiActivity extends Activity {
 		return true;
 	}
 
-	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
-//		int id = item.getItemId();
-		return super.onOptionsItemSelected(item);
-	}
-	
-	protected void switchDebugView() {
-		ViewSwitcher mSwitcher = (ViewSwitcher) findViewById(R.id.viewSwitcher);
-		mSwitcher.showNext();
-	}
-	
 	protected void publishData(byte[] data) {
 		if(state.mWeAreGroupOwner) {
 			broadcastData(data);
@@ -188,9 +177,10 @@ public abstract class WifiActivity extends Activity {
 		if(!state.mWeAreGroupOwner) {
 			return;
 		}
-		Toast.makeText(this, "DATA BROADCAST = " + new String(data), Toast.LENGTH_SHORT).show();
+		Log.d(LOGTAG, "BROADCAST");
 		byte[] msg = NetworkProtocol.composeMessage(NetworkProtocol.CMD_SEND_DATA, data);
 		for(InetSocketAddress a: state.getClientAddresses()) {
+			Log.d(LOGTAG, "CLIENT BROADCAST TO IP="+a);
 			sendMessageToAddr(msg, a);
 		}
 	}
@@ -202,7 +192,7 @@ public abstract class WifiActivity extends Activity {
 		if(state.mWeAreGroupOwner) {
 			return;
 		}
-		Toast.makeText(this, "DATA SEND = " + new String(data), Toast.LENGTH_SHORT).show();
+		Log.d(LOGTAG, "SEND");
 		byte[] msg = NetworkProtocol.composeMessage(NetworkProtocol.CMD_SEND_DATA, data);
 		mDeduplicator.addMessage(data);
 		sendMessageToAddr(msg, state.getGroupOwnerConnectionInfos());
@@ -218,8 +208,6 @@ public abstract class WifiActivity extends Activity {
 		}
 		
 		messagesToProcess.offer(data);
-		
-		Toast.makeText(this, "DATA RECEIVE = " + new String(data), Toast.LENGTH_SHORT).show();
 		
 		// rebroadcast immediately
 		if(state.mWeAreGroupOwner) {
@@ -249,8 +237,6 @@ public abstract class WifiActivity extends Activity {
 								showData(data);
 							}
 						});
-						
-						Log.d(LOGTAG, "GOT SOMETHING len=" + data.length);
 					}
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block

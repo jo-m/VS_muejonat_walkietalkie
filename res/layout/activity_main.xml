@@ -34,10 +34,19 @@
 	   	    android:scaleType="fitCenter"
 	   	    android:src="@drawable/send_button" />
 
+	   	<Button
+	   	    android:id="@+id/debugButton"
+	   	    android:layout_width="wrap_content"
+	   	    android:layout_height="wrap_content"
+	   	    android:layout_alignParentBottom="true"
+	   	    android:layout_alignParentRight="true"
+	   	    android:text="Debug" />
+
 	</RelativeLayout>
 	
     <ScrollView
-	    android:id="@+id/scrollView1"
+	    android:id="@+id/scrollView"
+	    android:background="@color/white"
 	    android:layout_width="match_parent"
 	    android:layout_height="match_parent">
 	
@@ -46,29 +55,37 @@
 	        android:layout_height="wrap_content"
 	        android:orientation="vertical" >
 	        
-	      <TextView
-	          android:id="@+id/textView"
-	          android:layout_width="match_parent"
-	          android:layout_height="wrap_content"
-	          android:layout_margin="10dp"
-	          android:text="Peers"
-	          android:textColor="@color/buddies" />
-	
-		  <TextView
-		      android:id="@+id/statTextView"
-		      android:layout_width="match_parent"
-		      android:layout_height="wrap_content"
-		      android:layout_margin="10dp"
-		      android:text="Stat"
-		      android:textColor="@color/stat" />
-		  
-		  <TextView
-		      android:id="@+id/connStatTextView"
-		      android:layout_width="match_parent"
-		      android:layout_height="wrap_content"
-		      android:layout_margin="10dp"
-		      android:text="Conn"
-		      android:textColor="@color/connState" />
+		    <Button
+		   	    android:id="@+id/debugButton2"
+		   	    android:layout_width="wrap_content"
+		   	    android:layout_height="wrap_content"
+		   	    android:layout_alignParentBottom="true"
+		   	    android:layout_alignParentRight="true"
+		   	    android:text="Back to Phone" />
+		        
+		      <TextView
+		          android:id="@+id/textView"
+		          android:layout_width="match_parent"
+		          android:layout_height="wrap_content"
+		          android:layout_margin="10dp"
+		          android:text="Peers"
+		          android:textColor="@color/buddies" />
+		
+			  <TextView
+			      android:id="@+id/statTextView"
+			      android:layout_width="match_parent"
+			      android:layout_height="wrap_content"
+			      android:layout_margin="10dp"
+			      android:text="Stat"
+			      android:textColor="@color/stat" />
+			  
+			  <TextView
+			      android:id="@+id/connStatTextView"
+			      android:layout_width="match_parent"
+			      android:layout_height="wrap_content"
+			      android:layout_margin="10dp"
+			      android:text="Conn"
+			      android:textColor="@color/connState" />
 	
 	    </LinearLayout>
 	</ScrollView>
