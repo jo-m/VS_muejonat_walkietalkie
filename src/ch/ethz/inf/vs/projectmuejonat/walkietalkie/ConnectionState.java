@@ -50,7 +50,7 @@ public class ConnectionState {
 			// not know the name etc (no bonjour discovery made)
 			Log.d(LOGTAG, "getGroupOwnerConnectionInfos HACK " + mConnected + " " + !mWeAreGroupOwner + " " + mGroupOwnerAddress);
 			if(mConnected && !mWeAreGroupOwner && mGroupOwnerAddress != null) {
-				return new InetSocketAddress(mGroupOwnerAddress, MainActivity.SERVER_PORT);
+				return new InetSocketAddress(mGroupOwnerAddress, WifiActivity.SERVER_PORT);
 			}
 			return null;
 		}
@@ -67,7 +67,7 @@ public class ConnectionState {
 			if(b.addr != null) {
 				int port = b.serverPort;
 				if(port < 0) {
-					port = MainActivity.SERVER_PORT;
+					port = WifiActivity.SERVER_PORT;
 				}
 				ret.add(new InetSocketAddress(b.addr, port));
 			}
