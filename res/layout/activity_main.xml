@@ -20,7 +20,7 @@
             android:layout_centerHorizontal="true"
             android:layout_marginTop="90dp"
             android:background="@drawable/display"
-            android:text="ANDROID TALKIE 2000"
+            android:text="OFF"
             android:textColor="@color/display"
             android:textSize="10pt" />
         
@@ -41,6 +41,44 @@
 	   	    android:layout_alignParentBottom="true"
 	   	    android:layout_alignParentRight="true"
 	   	    android:text="Debug" />
+
+	   	<ImageView
+	   	    android:id="@+id/txView"
+	   	    android:layout_alignParentLeft="true"
+	   	    android:layout_alignTop="@+id/screenText"
+	   	    android:layout_marginTop="16dp"
+	   	    android:layout_width="30dp"
+	   	    android:layout_height="30dp"
+	   	    android:src="@drawable/led_green_off" />
+
+	   	<TextView
+	   	    android:id="@+id/textView1"
+	   	    android:layout_alignLeft="@+id/txView"
+	   	    android:layout_below="@+id/txView"
+	   	    android:layout_marginTop="3dp"
+	   	    android:layout_width="wrap_content"
+	   	    android:layout_height="wrap_content"
+	   	    android:text="TX"
+	   	    android:textAppearance="?android:attr/textAppearanceLarge" />
+
+	   	<ImageView
+	   	    android:id="@+id/rxView"
+	   	    android:layout_width="30dp"
+	   	    android:layout_height="30dp"
+	   	    android:layout_alignLeft="@+id/textView1"
+	   	    android:layout_below="@+id/textView1"
+	   	    android:layout_marginTop="10dp"
+	   	    android:src="@drawable/led_red_off" />
+
+	   	<TextView
+	   	    android:id="@+id/textView2"
+	   	    android:layout_width="wrap_content"
+	   	    android:layout_height="wrap_content"
+	   	    android:layout_alignLeft="@+id/rxView"
+	   	    android:layout_below="@+id/rxView"
+	   	    android:layout_marginTop="3dp"
+	   	    android:text="RX"
+	   	    android:textAppearance="?android:attr/textAppearanceLarge" />
 
 	</RelativeLayout>
 	

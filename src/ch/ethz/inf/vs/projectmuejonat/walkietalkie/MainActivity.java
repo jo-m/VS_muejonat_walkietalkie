@@ -1,10 +1,12 @@
 package ch.ethz.inf.vs.projectmuejonat.walkietalkie;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -18,6 +20,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnTouchListener;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,6 +29,8 @@ public class MainActivity extends WifiActivity implements OnTouchListener  {
 	private ImageButton mSpeakButton;
 	private TextView mDisplay;
 	private DisplayAsyncTask mDisplayTask;
+	private ImageView rxView;
+	private ImageView txView;
 	
 	private static String mSendTempFile;
 	private static String mPlayTempFile;
@@ -37,9 +42,11 @@ public class MainActivity extends WifiActivity implements OnTouchListener  {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		mSpeakButton = (ImageButton) findViewById(R.id.speakButton);
-		mSpeakButton.setOnTouchListener(this);
-		
 		mDisplay = (TextView) findViewById(R.id.screenText);
+		rxView = (ImageView) findViewById(R.id.rxView);
+		txView = (ImageView) findViewById(R.id.txView);
+		
+		mSpeakButton.setOnTouchListener(this);
 		
 		mSendTempFile = getFilesDir() + "/send_temp.3gp";
 		mPlayTempFile = getFilesDir() + "/play_temp.3gp";
@@ -69,13 +76,53 @@ public class MainActivity extends WifiActivity implements OnTouchListener  {
             mPlayer = null;
         }
 	}
+	
+	private void bufToFile(byte[] buf, String fname) {
+		BufferedOutputStream bos;
+		try {
+			bos = new BufferedOutputStream(new FileOutputStream(new File(fname)));
+		} catch (FileNotFoundException e1) {
+			e1.printStackTrace();
+			return;
+		}
+		try {
+			bos.write(buf);
+			bos.flush();
+			bos.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 
 	@Override
 	protected void showData(byte[] data) {
+		rxView.setImageResource(R.drawable.led_red_on);
 		Toast.makeText(this, "showData = " + data.length, Toast.LENGTH_SHORT).show();
+		
+		bufToFile(data, mPlayTempFile);
+		
+		mPlayer = new MediaPlayer();
+        try {
+            mPlayer.setDataSource(mPlayTempFile);
+            mPlayer.prepare();
+            mPlayer.start();
+            mPlayer.setLooping(false);
+            mPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+				@Override
+				public void onCompletion(MediaPlayer mp) {
+					mPlayer.release();
+					mPlayer = null;
+					rxView.setImageResource(R.drawable.led_red_off);
+				}
+			});
+        } catch (IOException e) {
+        	e.printStackTrace();
+        }
 	}
 	
 	private void startRecording() {
+		txView.setImageResource(R.drawable.led_green_on);
 		mRecorder = new MediaRecorder();
         mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
@@ -117,6 +164,7 @@ public class MainActivity extends WifiActivity implements OnTouchListener  {
 	}
 	
 	private void stopRecording() {
+		txView.setImageResource(R.drawable.led_green_off);
 		try {
 			mRecorder.stop();
 	        mRecorder.release();
@@ -127,7 +175,6 @@ public class MainActivity extends WifiActivity implements OnTouchListener  {
 		}
 		
         byte[] data = fileToBuf(mSendTempFile);
-        Toast.makeText(this, "RECORDED len="+new File(mSendTempFile).length(), Toast.LENGTH_SHORT).show();
         publishData(data);
 	}
 
@@ -170,14 +217,13 @@ public class MainActivity extends WifiActivity implements OnTouchListener  {
 			
 			if(state.mConnected) {
 				sb.append("CONNECTED\n");
+				if(state.mWeAreGroupOwner) {
+					sb.append("GO\n");
+				} else {
+					sb.append("CL\n");
+				}
 			} else {
 				sb.append("NOT CONNECTED\n");
-			}
-			
-			if(state.mWeAreGroupOwner) {
-				sb.append("GO\n");
-			} else {
-				sb.append("CL\n");
 			}
 			
 			mDisplay.setText(sb.toString());
