@@ -111,7 +111,7 @@ public class MainActivity extends WifiActivity implements OnTouchListener  {
             mPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
 				@Override
 				public void onCompletion(MediaPlayer mp) {
-					mPlayer.release();
+                    mp.release();
 					mPlayer = null;
 					rxView.setImageResource(R.drawable.led_red_off);
 				}
