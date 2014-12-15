@@ -1,4 +1,4 @@
-package ch.ethz.inf.vs.projectmuejonat.walkietalkie;
+package ch.ethz.inf.vs.project.muejonat.walkietalkie;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -12,7 +12,6 @@ import android.net.wifi.p2p.WifiP2pManager;
 import android.net.wifi.p2p.WifiP2pManager.Channel;
 import android.net.wifi.p2p.WifiP2pManager.ConnectionInfoListener;
 import android.net.wifi.p2p.WifiP2pManager.PeerListListener;
-import android.util.Log;
 import android.widget.Toast;
 
 /**

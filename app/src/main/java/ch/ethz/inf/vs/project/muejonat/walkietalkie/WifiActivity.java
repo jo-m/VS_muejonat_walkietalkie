@@ -1,13 +1,11 @@
-package ch.ethz.inf.vs.projectmuejonat.walkietalkie;
+package ch.ethz.inf.vs.project.muejonat.walkietalkie;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -28,21 +26,16 @@ import android.net.wifi.p2p.WifiP2pManager.DnsSdServiceResponseListener;
 import android.net.wifi.p2p.WifiP2pManager.DnsSdTxtRecordListener;
 import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceInfo;
 import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceRequest;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
 import android.widget.ViewSwitcher;
 
-import ch.ethz.inf.vs.projectmuejonat.walkietalkie.ConnectionState.Buddy;
-
-import ch.ethz.inf.vs.projectmuejonat.walkietalkie.R;
+import ch.ethz.inf.vs.project.muejonat.walkietalkie.ConnectionState.Buddy;
 
 public abstract class WifiActivity extends Activity {
 

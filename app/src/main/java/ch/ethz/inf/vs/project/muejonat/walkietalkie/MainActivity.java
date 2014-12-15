@@ -1,4 +1,4 @@
-package ch.ethz.inf.vs.projectmuejonat.walkietalkie;
+package ch.ethz.inf.vs.project.muejonat.walkietalkie;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -15,7 +15,6 @@ import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnTouchListener;

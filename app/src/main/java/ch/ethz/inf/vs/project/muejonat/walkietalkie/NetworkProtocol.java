@@ -1,9 +1,7 @@
-package ch.ethz.inf.vs.projectmuejonat.walkietalkie;
+package ch.ethz.inf.vs.project.muejonat.walkietalkie;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.Arrays;
 
 public class NetworkProtocol {

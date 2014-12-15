@@ -1,4 +1,4 @@
-package ch.ethz.inf.vs.projectmuejonat.walkietalkie;
+package ch.ethz.inf.vs.project.muejonat.walkietalkie;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
